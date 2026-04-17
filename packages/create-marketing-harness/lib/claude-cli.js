@@ -29,11 +29,12 @@ export async function isMcpRegistered(name, cwd) {
 
 export async function registerMcp(name, { projectDir, workerUrl, apiKey }) {
   const distPath = resolve(join(projectDir, "packages/mcp-server/dist/index.js"));
+  // name を先に置く: -e は variadic なので後ろに置くと name まで env var として食われる
   await execa("claude", [
     "mcp", "add",
+    name,
     "-e", `MARKETING_HARNESS_URL=${workerUrl}`,
     "-e", `MARKETING_HARNESS_API_KEY=${apiKey}`,
-    name,
     "--",
     "node",
     distPath,
