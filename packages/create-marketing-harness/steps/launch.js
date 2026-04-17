@@ -1,11 +1,10 @@
 import { execa } from "execa";
 import { readConfig, touchLastLaunch } from "../lib/config-file.js";
 import { assertClaudeCli, isMcpRegistered, registerMcp, ensureMcpBuilt } from "../lib/claude-cli.js";
+import { loadCommands } from "../lib/command-loader.js";
+import { printMenuBanner, renderMainMenu, renderConfigureMenu } from "../lib/menu.js";
 
-const FIRST_LAUNCH_PROMPT =
-  "marketing-harness へようこそ。現在の連携状況を確認し、直近 7 日間のキャンペーン実績をざっと俯瞰して、特に注目すべきキャンペーンが 1〜3 件あれば教えてください。必要なら /mh-analyze の実行を提案してください。";
-
-export async function run({ projectDir }) {
+export async function run({ projectDir, raw = false }) {
   const cfg = readConfig(projectDir);
   if (!cfg) return;
 
@@ -23,24 +22,47 @@ export async function run({ projectDir }) {
     });
   }
 
-  const isFirstLaunch = !cfg.lastLaunchAt;
-  if (isFirstLaunch) {
-    printLaunchBanner(cfg);
-  } else {
-    console.log("  marketing-harness ready — starting claude...\n");
+  const env = {
+    ...process.env,
+    MARKETING_HARNESS_URL: cfg.workerUrl,
+    MARKETING_HARNESS_API_KEY: cfg.apiKey,
+  };
+
+  if (raw || process.env.MH_RAW === "1") {
+    await spawnClaude([], { cwd: projectDir, env });
+    return;
   }
 
-  const args = isFirstLaunch ? [FIRST_LAUNCH_PROMPT] : [];
+  printMenuBanner(cfg);
+  const commands = loadCommands(projectDir);
+  const choice = await renderMainMenu(cfg, commands);
 
-  const child = execa("claude", args, {
-    cwd: projectDir,
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      MARKETING_HARNESS_URL: cfg.workerUrl,
-      MARKETING_HARNESS_API_KEY: cfg.apiKey,
-    },
-  });
+  if (choice.type === "exit") {
+    process.exit(0);
+  }
+
+  if (choice.type === "configure") {
+    const service = await renderConfigureMenu();
+    if (!service) process.exit(0);
+    const stepMap = {
+      cloudflare:   "../steps/cloudflare.js",
+      meta:         "../steps/meta.js",
+      line:         "../steps/line.js",
+      utage:        "../steps/utage.js",
+      "google-ads": "../steps/google-ads.js",
+    };
+    const { run: configureStep } = await import(stepMap[service]);
+    await configureStep({ config: { projectDir }, mode: "configure" });
+    await touchLastLaunch(projectDir);
+    process.exit(0);
+  }
+
+  const args = choice.type === "slash" ? [choice.slug] : [];
+  await spawnClaude(args, { cwd: projectDir, env });
+}
+
+async function spawnClaude(args, opts) {
+  const child = execa("claude", args, { stdio: "inherit", ...opts });
 
   const forward = (sig) => { try { child.kill(sig); } catch {} };
   process.on("SIGINT", forward);
@@ -58,22 +80,6 @@ export async function run({ projectDir }) {
     }
   }
 
-  await touchLastLaunch(projectDir);
+  await touchLastLaunch(opts.cwd);
   process.exit(exitCode);
-}
-
-function printLaunchBanner(cfg) {
-  const integrations = cfg.integrations ?? {};
-  const enabled = Object.entries(integrations)
-    .filter(([, v]) => v && v.enabled)
-    .map(([k]) => k)
-    .join(", ") || "なし";
-
-  console.log("\n" + "═".repeat(54));
-  console.log("  marketing-harness  ready");
-  console.log("═".repeat(54));
-  console.log(`  Worker:  ${cfg.workerUrl || "(local)"}`);
-  console.log(`  連携済み: ${enabled}`);
-  console.log(`  コマンド: /mh-analyze  /mh-report  /mh-kpi  /mh-propose`);
-  console.log("═".repeat(54) + "\n");
 }

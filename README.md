@@ -103,7 +103,7 @@ npx marketing-harness configure cloudflare
 
 ---
 
-## Claude Code で使い始める
+## 使い始める
 
 セットアップ完了後、これだけ:
 
@@ -112,16 +112,30 @@ cd my-marketing-harness
 marketing-harness
 ```
 
-MCP 登録・Claude Code 起動が自動で完了します。初回起動時は直近のキャンペーン状況を自動で俯瞰します。
+marketing-harness のメニューが表示されます。やれることを選ぶだけで、裏側の Claude Code が自動で動きます。
 
 ```
-/mh-analyze
-/mh-report 2026-04
-/mh-kpi
-今月 CPA が一番高いキャンペーンを教えて
-LINE で今週のキャンペーン結果を報告して
-UTAGE の購読者に今週のセール情報を配信して
+╔══════════════════════════════════════════════╗
+║  marketing-harness                            ║
+║  広告運用 AI エージェント                     ║
+╚══════════════════════════════════════════════╝
+
+  Worker:    https://marketing-harness.xxx.workers.dev
+  連携済み:  meta, line
+  最終起動:  初回起動
+
+  何をしますか？
+
+  ▸ 広告パフォーマンスを分析する         (/mh-analyze)
+  ▸ KPI 未達キャンペーンの改善提案を見る (/mh-propose)
+  ▸ 月次レポートを作成する               (/mh-report)
+  ▸ ...
+  ▸ Claude に自由に話しかける
+  ▸ 連携を追加・変更する
+  ▸ 終了
 ```
+
+Claude Code を直接起動したい場合: `marketing-harness --raw`
 
 ---
 

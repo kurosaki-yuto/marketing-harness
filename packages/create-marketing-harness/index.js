@@ -34,9 +34,9 @@ async function runInit() {
   printCompletion(config);
 }
 
-async function runLaunch(projectDir) {
+async function runLaunch(projectDir, { raw = false } = {}) {
   const { run } = await import("./steps/launch.js");
-  await run({ projectDir });
+  await run({ projectDir, raw });
 }
 
 async function runConfigure(service) {
@@ -92,6 +92,9 @@ function printCompletion(config) {
 
 // エントリーポイント
 const argv = process.argv.slice(2);
+const rawIdx = argv.indexOf("--raw");
+const raw = rawIdx !== -1;
+if (raw) argv.splice(rawIdx, 1);
 const [sub, svc] = argv;
 const binName = basename(process.argv[1] ?? "");
 
@@ -114,7 +117,7 @@ async function main() {
         break;
       case "launch": {
         const { state, projectDir } = detectProject(process.cwd());
-        if (state === "ready")       await runLaunch(projectDir);
+        if (state === "ready")       await runLaunch(projectDir, { raw });
         else if (state === "broken") runRepair(projectDir ?? process.cwd());
         else                         runHelpOutsideProject();
         break;
@@ -130,12 +133,10 @@ async function main() {
         break;
     }
   } else if (binName.startsWith("create-")) {
-    // `create-marketing-harness` bin always starts the wizard
     await runInit();
   } else {
-    // bare `marketing-harness` — detect project context
     const { state, projectDir } = detectProject(process.cwd());
-    if (state === "ready")       await runLaunch(projectDir);
+    if (state === "ready")       await runLaunch(projectDir, { raw });
     else if (state === "broken") runRepair(projectDir ?? process.cwd());
     else                         runHelpOutsideProject();
   }
