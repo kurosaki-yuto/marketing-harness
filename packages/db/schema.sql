@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   license_expires_at TEXT,
   license_last_verified_at TEXT,
   instance_id TEXT,
+  integrations_enabled TEXT DEFAULT '[]',
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );

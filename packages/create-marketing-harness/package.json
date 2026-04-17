@@ -1,13 +1,16 @@
 {
   "name": "create-marketing-harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Set up marketing-harness in one command",
   "type": "module",
   "bin": {
-    "create-marketing-harness": "./index.js"
+    "create-marketing-harness": "./index.js",
+    "marketing-harness": "./index.js"
   },
   "dependencies": {
+    "clipboardy": "^4.0.0",
     "execa": "^9.0.0",
+    "open": "^10.1.0",
     "prompts": "^2.4.2"
   },
   "devDependencies": {

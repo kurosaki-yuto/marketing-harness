@@ -10,14 +10,25 @@ import { changeHistoryRouter } from "./api/change-history";
 import { campaignsRouter } from "./api/campaigns";
 import { socialAccountsRouter } from "./api/social/accounts";
 import { socialPostsRouter } from "./api/social/posts";
+import { lineRouter } from "./api/integrations/line";
+import { utageRouter } from "./api/integrations/utage";
+import { googleAdsRouter } from "./api/integrations/google-ads";
 import { authMiddleware } from "./middleware/auth";
 import { licenseMiddleware } from "./middleware/license";
 import { handleCron } from "./crons";
 
 export type Env = {
   DB: D1Database;
-  META_ACCESS_TOKEN: string;
-  META_AD_ACCOUNT_ID: string;
+  META_ACCESS_TOKEN?: string;
+  META_AD_ACCOUNT_ID?: string;
+  LINE_CHANNEL_ACCESS_TOKEN?: string;
+  LINE_CHANNEL_SECRET?: string;
+  UTAGE_API_KEY?: string;
+  GOOGLE_ADS_DEVELOPER_TOKEN?: string;
+  GOOGLE_ADS_CLIENT_ID?: string;
+  GOOGLE_ADS_CLIENT_SECRET?: string;
+  GOOGLE_ADS_REFRESH_TOKEN?: string;
+  GOOGLE_ADS_CUSTOMER_ID?: string;
   API_KEY: string;
   LICENSE_KEY: string;
   LICENSE_SERVER_URL: string;
@@ -82,6 +93,9 @@ app.route("/api/change-history", changeHistoryRouter);
 app.route("/api/campaigns", campaignsRouter);
 app.route("/api/social/accounts", socialAccountsRouter);
 app.route("/api/social/posts", socialPostsRouter);
+app.route("/api/integrations/line", lineRouter);
+app.route("/api/integrations/utage", utageRouter);
+app.route("/api/integrations/google-ads", googleAdsRouter);
 
 export default {
   fetch: app.fetch,

@@ -11,6 +11,7 @@ export async function syncMetaAds(env: Env): Promise<void> {
   ).all<{ id: string; account_id: string; meta_ad_account_id: string }>();
 
   if (companies.length === 0) return;
+  if (!env.META_ACCESS_TOKEN) return;
 
   for (const company of companies) {
     const client = new MetaAdsClient(env.META_ACCESS_TOKEN, company.meta_ad_account_id);

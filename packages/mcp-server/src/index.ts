@@ -201,6 +201,54 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["post_id"],
       },
     },
+    {
+      name: "send_line_message",
+      description: "LINE ユーザーにメッセージを送信します（push 配信）",
+      inputSchema: {
+        type: "object",
+        properties: {
+          to: { type: "string", description: "送信先 LINE ユーザー ID" },
+          message: { type: "string", description: "送信するメッセージ本文" },
+        },
+        required: ["to", "message"],
+      },
+    },
+    {
+      name: "list_utage_subscribers",
+      description: "UTAGE（宴）の購読者一覧を取得します",
+      inputSchema: {
+        type: "object",
+        properties: {
+          limit: { type: "number", description: "取得件数（省略時は 20）" },
+        },
+      },
+    },
+    {
+      name: "sync_google_ads_campaigns",
+      description: "Google Ads のキャンペーンを D1 データベースに同期します",
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: { type: "string", description: "同期先の企業 ID" },
+        },
+        required: ["company_id"],
+      },
+    },
+    {
+      name: "check_integration_status",
+      description: "各サービス連携の接続状態を確認します",
+      inputSchema: {
+        type: "object",
+        properties: {
+          service: {
+            type: "string",
+            enum: ["line", "utage", "google-ads"],
+            description: "確認するサービス",
+          },
+        },
+        required: ["service"],
+      },
+    },
   ],
 }));
 
@@ -327,6 +375,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "delete_social_post": {
         await apiCall(`/api/social/posts/${a.post_id}`, { method: "DELETE" });
         return { content: [{ type: "text", text: "投稿を削除しました" }] };
+      }
+
+      case "send_line_message": {
+        const data = await apiCall("/api/integrations/line/message", {
+          method: "POST",
+          body: JSON.stringify({ to: a.to, message: a.message }),
+        });
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "list_utage_subscribers": {
+        const q = a.limit ? `?limit=${a.limit}` : "";
+        const data = await apiCall(`/api/integrations/utage/subscribers${q}`);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "sync_google_ads_campaigns": {
+        const data = await apiCall("/api/integrations/google-ads/sync", {
+          method: "POST",
+          body: JSON.stringify({ companyId: a.company_id }),
+        });
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "check_integration_status": {
+        const data = await apiCall(`/api/integrations/${a.service}/status`);
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
 
       default:
