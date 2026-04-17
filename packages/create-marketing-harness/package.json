@@ -1,6 +1,7 @@
 {
   "name": "create-marketing-harness",
   "version": "0.3.0",
+  "private": true,
   "description": "Set up marketing-harness in one command",
   "type": "module",
   "bin": {

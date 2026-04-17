@@ -8,7 +8,7 @@
 
 「Claude Code を触ったことがないけど、広告運用の AI 自動化をしたい」マーケターのために作られています。
 
-`npx create-marketing-harness` を実行するだけで、ウィザードが一つひとつ丁寧に案内します。詰まったときは「Claude in Chrome」に任せるオプションも用意しています。
+このリポジトリを clone して `pnpm start` を実行するだけで、ウィザードが一つひとつ丁寧に案内します。詰まったときは「Claude in Chrome」に任せるオプションも用意しています。
 
 ---
 
@@ -44,7 +44,9 @@
 ### ワンコマンドセットアップ
 
 ```bash
-npx create-marketing-harness
+git clone https://github.com/kurosaki-yuto/marketing-harness.git
+cd marketing-harness
+pnpm install && pnpm start
 ```
 
 ウィザードが以下を一つずつ案内します:
@@ -86,20 +88,22 @@ npx create-marketing-harness
 cd my-marketing-harness
 
 # LINE を追加
-npx marketing-harness configure line
+marketing-harness configure line
 
 # UTAGE を追加
-npx marketing-harness configure utage
+marketing-harness configure utage
 
 # Google Ads を追加（Developer Token 審査完了後）
-npx marketing-harness configure google-ads
+marketing-harness configure google-ads
 
 # Meta Ads を変更
-npx marketing-harness configure meta
+marketing-harness configure meta
 
 # Cloudflare 認証情報を更新
-npx marketing-harness configure cloudflare
+marketing-harness configure cloudflare
 ```
+
+> `marketing-harness` コマンドが見つからない場合は `./node_modules/.bin/marketing-harness configure <svc>` で実行できます。
 
 ---
 
@@ -236,7 +240,7 @@ marketing-harness/
 
 marketing-harness のコードは **MIT ライセンス**で公開していますが、実際に動かすには **コミュニティメンバーシップ（月額）** から発行されるライセンスキーが必要です。
 
-- ライセンスキーは `npx create-marketing-harness` のセットアップ時に入力します
+- ライセンスキーは `pnpm start` のセットアップ時に入力します
 - 退会・解約した場合はキーが即座に失効し、Worker へのアクセスが遮断されます
 - セルフホストした license-server を使って独自に管理することも可能です
 
