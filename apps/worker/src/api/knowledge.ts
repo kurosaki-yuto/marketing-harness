@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import Anthropic from "@anthropic-ai/sdk";
 import type { Env } from "../index";
 
 export const knowledgeRouter = new Hono<{
@@ -85,26 +84,3 @@ knowledgeRouter.delete("/:id", async (c) => {
   return c.json({ success: true });
 });
 
-// AI要約・最適化
-knowledgeRouter.post("/:id/optimize", async (c) => {
-  const accountId = c.get("accountId");
-  const row = await c.env.DB.prepare(
-    "SELECT * FROM knowledge WHERE id = ? AND account_id = ?"
-  )
-    .bind(c.req.param("id"), accountId)
-    .first<{ title: string; content: string }>();
-  if (!row) return c.json({ error: "Not found" }, 404);
-
-  const anthropic = new Anthropic({ apiKey: c.env.ANTHROPIC_API_KEY });
-  const res = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1024,
-    system: "広告運用のナレッジを簡潔で再利用しやすい形式に最適化してください。箇条書きで整理し、重複を除去してください。",
-    messages: [
-      { role: "user", content: `タイトル: ${row.title}\n\n内容:\n${row.content}` },
-    ],
-  });
-
-  const optimized = res.content[0].type === "text" ? res.content[0].text : "";
-  return c.json({ optimized });
-});

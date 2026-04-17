@@ -63,29 +63,6 @@ CREATE TABLE IF NOT EXISTS ad_metrics (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
--- チャットセッション
-CREATE TABLE IF NOT EXISTS chat_sessions (
-  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  company_id TEXT REFERENCES companies(id),
-  campaign_id TEXT,
-  campaign_name TEXT,
-  title TEXT DEFAULT '新しいチャット',
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
-);
-
--- チャットメッセージ
-CREATE TABLE IF NOT EXISTS chat_messages (
-  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  session_id TEXT NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
-  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
-  content TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
 -- ナレッジ
 CREATE TABLE IF NOT EXISTS knowledge (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -111,7 +88,6 @@ CREATE TABLE IF NOT EXISTS change_history (
   description TEXT,
   reason TEXT,
   ai_discussion_summary TEXT,
-  chat_session_id TEXT REFERENCES chat_sessions(id),
   affected_entity_type TEXT,
   affected_entity_id TEXT,
   affected_entity_name TEXT,
@@ -176,8 +152,6 @@ CREATE TABLE IF NOT EXISTS social_posts (
 CREATE INDEX IF NOT EXISTS idx_companies_account ON companies(account_id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_account ON campaigns(account_id, company_id);
 CREATE INDEX IF NOT EXISTS idx_metrics_campaign ON ad_metrics(account_id, campaign_id, date DESC);
-CREATE INDEX IF NOT EXISTS idx_sessions_account ON chat_sessions(account_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_messages_session ON chat_messages(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_knowledge_account ON knowledge(account_id, status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_history_campaign ON change_history(account_id, company_id, campaign_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_kpi_campaign ON kpi_settings(account_id, campaign_id);

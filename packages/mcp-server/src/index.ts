@@ -57,20 +57,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "ask_agent",
-      description: "AIエージェントに広告運用の改善提案を相談します",
-      inputSchema: {
-        type: "object",
-        properties: {
-          message: { type: "string", description: "質問・相談内容" },
-          company_id: { type: "string", description: "企業ID（省略可）" },
-        },
-        required: ["message"],
-      },
-    },
-    {
-      name: "create_report",
-      description: "月次広告運用レポートを生成します",
+      name: "get_report_data",
+      description: "月次レポート作成に必要なデータを取得します（メトリクス・変更履歴・ナレッジ）。このデータを基に Claude Code がレポートを生成します",
       inputSchema: {
         type: "object",
         properties: {
@@ -78,6 +66,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           month: { type: "string", description: "対象月 YYYY-MM" },
         },
         required: ["company_id", "month"],
+      },
+    },
+    {
+      name: "save_report",
+      description: "生成した月次広告レポートを保存します",
+      inputSchema: {
+        type: "object",
+        properties: {
+          company_id: { type: "string", description: "企業ID" },
+          month: { type: "string", description: "対象月 YYYY-MM" },
+          content: { type: "string", description: "レポート本文（Markdown）" },
+        },
+        required: ["company_id", "month", "content"],
       },
     },
     {
@@ -230,45 +231,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
 
-      case "ask_agent": {
-        const res = await fetch(`${WORKER_URL}/api/chat`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: a.message }],
-            companyId: a.company_id,
-          }),
-        });
-
-        // SSEを読んで全文を組み立てる
-        const reader = res.body!.getReader();
-        const decoder = new TextDecoder();
-        let fullText = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          for (const line of chunk.split("\n")) {
-            if (line.startsWith("data: ") && line !== "data: [DONE]") {
-              try {
-                const obj = JSON.parse(line.slice(6)) as { text?: string };
-                if (obj.text) fullText += obj.text;
-              } catch { /* skip */ }
-            }
-          }
-        }
-        return { content: [{ type: "text", text: fullText }] };
-      }
-
-      case "create_report": {
-        const data = await apiCall("/api/reports/generate", {
+      case "get_report_data": {
+        const data = await apiCall("/api/reports/data", {
           method: "POST",
           body: JSON.stringify({ companyId: a.company_id, month: a.month }),
         });
-        return { content: [{ type: "text", text: (data as { report: string }).report }] };
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "save_report": {
+        const data = await apiCall("/api/reports", {
+          method: "POST",
+          body: JSON.stringify({ companyId: a.company_id, month: a.month, content: a.content }),
+        });
+        return { content: [{ type: "text", text: `レポートを保存しました (id: ${(data as { id: string }).id})` }] };
       }
 
       case "set_kpi_target": {

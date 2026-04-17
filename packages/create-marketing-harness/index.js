@@ -82,12 +82,6 @@ async function main() {
   // ---- Step 3: API キー収集 ----
   const answers = await prompts([
     {
-      type: "password",
-      name: "anthropicKey",
-      message: "Anthropic API Key (sk-ant-...):",
-      validate: (v) => v.startsWith("sk-ant-") ? true : "sk-ant- から始まるキーを入力してください",
-    },
-    {
       type: "text",
       name: "metaToken",
       message: "Meta Access Token (任意、Enterでスキップ):",
@@ -101,7 +95,7 @@ async function main() {
     },
   ]);
 
-  if (answers.anthropicKey === undefined) process.exit(1);
+  if (answers.metaToken === undefined) process.exit(1);
 
   const apiKey = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
 
@@ -177,7 +171,6 @@ async function main() {
     await proc;
   }
 
-  await putSecret("ANTHROPIC_API_KEY", answers.anthropicKey);
   await putSecret("API_KEY", apiKey);
   await putSecret("LICENSE_KEY", licenseKey);
   await putSecret("LICENSE_SERVER_URL", LICENSE_SERVER_URL);
@@ -231,6 +224,9 @@ async function main() {
     `    MARKETING_HARNESS_URL=${workerUrl || "<worker-url>"} MARKETING_HARNESS_API_KEY=${apiKey} \\`
   );
   console.log("    claude mcp add marketing-harness -- node ./packages/mcp-server/dist/index.js\n");
+
+  console.log("  Claude Code にログインする（初回のみ）:");
+  console.log("    claude login\n");
 
   console.log("  Claude Code を起動して使う:");
   console.log("    claude\n");
