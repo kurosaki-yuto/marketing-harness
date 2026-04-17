@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "marketing-harness"
-database_id = "YOUR_DATABASE_ID_HERE"
+database_id = "8fa39398-c18e-49b1-809c-099399252d9f"
 
 [vars]
 LICENSE_SERVER_URL = "https://marketing-harness-license.gkoinobori0505.workers.dev"
