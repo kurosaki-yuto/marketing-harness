@@ -62,6 +62,58 @@ Claude Code (MCP) ──→ Workers API ──→ D1
 
 ---
 
+## Claude Code パッケージ
+
+`git clone` するだけで、Claude がマーケティングのドメインエキスパートとして振る舞います。
+
+### スラッシュコマンド（7 種）
+
+| コマンド | 機能 |
+|---|---|
+| `/mh-analyze` | 広告パフォーマンス分析 + 問題キャンペーン特定 |
+| `/mh-propose` | KPI 未達キャンペーンの改善提案のみ抽出 |
+| `/mh-report [YYYY-MM]` | 月次レポート生成（エグゼクティブサマリー + KPI 表 + 提案） |
+| `/mh-creative` | 新クリエイティブ案の生成（コピー・画像指示・動画構成） |
+| `/mh-sns-plan [週]` | SNS 投稿計画の立案 + 自動予約 |
+| `/mh-funnel` | 広告 → LP → メルマガ → 決済の全ファネル設計 |
+| `/mh-kpi` | 対話的 KPI 設定ウィザード |
+
+### 使い方
+
+```bash
+git clone https://github.com/your-org/marketing-harness.git
+cd marketing-harness
+pnpm install
+pnpm --filter mcp-server build
+
+# MCP サーバー登録
+MARKETING_HARNESS_URL=https://your-worker.workers.dev \
+MARKETING_HARNESS_API_KEY=your-api-key \
+claude mcp add marketing-harness -- node ./packages/mcp-server/dist/index.js
+
+# Claude Code を起動して使う
+claude
+```
+
+```
+# 例
+/mh-analyze
+/mh-report 2026-04
+/mh-kpi
+今月 CPA が一番高いキャンペーンを教えて
+先週の SNS 投稿の反応を見て今週の計画を立てて
+```
+
+### 内蔵スキル（12 種）
+
+| カテゴリ | スキル |
+|---|---|
+| 広告 | Meta Ads 指標読解 / 構造設計 / KPI 設計 / クリエイティブ評価 / 月次レポート |
+| SNS | Instagram 戦略 / TikTok 戦略 / コンテンツカレンダー |
+| UTAGE 相当 | メールマーケティング / LP 最適化 / 決済ファネル / MA 設計 |
+
+---
+
 ## クイックスタート
 
 ### 前提条件
