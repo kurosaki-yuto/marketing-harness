@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
+import { writeConfig } from "../lib/config-file.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -75,6 +76,7 @@ export async function run({ config, mode }) {
     const opts = { cwd: config.projectDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("META_ACCESS_TOKEN", token, opts);
     await putSecret("META_AD_ACCOUNT_ID", accountId, opts);
+    writeConfig(config.projectDir, { integrations: { meta: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("Meta Ads 連携を設定しました");
   } else {
     printSuccess("Meta Ads の情報を取得しました（デプロイ時に設定します）");

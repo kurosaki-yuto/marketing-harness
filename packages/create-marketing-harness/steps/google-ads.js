@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText, askConfirm } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
+import { writeConfig } from "../lib/config-file.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -121,6 +122,7 @@ export async function run({ config, mode }) {
     await putSecret("GOOGLE_ADS_CLIENT_SECRET", clientSecret, opts);
     await putSecret("GOOGLE_ADS_REFRESH_TOKEN", refreshToken, opts);
     await putSecret("GOOGLE_ADS_CUSTOMER_ID", customerId, opts);
+    writeConfig(config.projectDir, { integrations: { googleAds: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("Google Ads 連携を設定しました");
   } else {
     printSuccess("Google Ads の情報を取得しました（デプロイ時に設定します）");

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { existsSync } from "fs";
-import { resolve } from "path";
+import { basename } from "path";
 import { printHeader } from "./lib/prompts.js";
+import { detectProject } from "./lib/project-detect.js";
+import { runHelp, runHelpOutsideProject, runRepair } from "./lib/help.js";
 
 process.on("SIGINT", () => {
   console.log("\n\nセットアップを中断しました。");
@@ -10,14 +11,14 @@ process.on("SIGINT", () => {
 
 async function runInit() {
   printHeader();
-  const { run: licenseStep } = await import("./steps/license.js");
-  const { run: projectStep } = await import("./steps/project.js");
+  const { run: licenseStep }    = await import("./steps/license.js");
+  const { run: projectStep }    = await import("./steps/project.js");
   const { run: cloudflareStep } = await import("./steps/cloudflare.js");
-  const { run: metaStep } = await import("./steps/meta.js");
-  const { run: lineStep } = await import("./steps/line.js");
-  const { run: utageStep } = await import("./steps/utage.js");
-  const { run: googleAdsStep } = await import("./steps/google-ads.js");
-  const { run: deployStep } = await import("./steps/deploy.js");
+  const { run: metaStep }       = await import("./steps/meta.js");
+  const { run: lineStep }       = await import("./steps/line.js");
+  const { run: utageStep }      = await import("./steps/utage.js");
+  const { run: googleAdsStep }  = await import("./steps/google-ads.js");
+  const { run: deployStep }     = await import("./steps/deploy.js");
 
   const config = {};
 
@@ -33,6 +34,11 @@ async function runInit() {
   printCompletion(config);
 }
 
+async function runLaunch(projectDir) {
+  const { run } = await import("./steps/launch.js");
+  await run({ projectDir });
+}
+
 async function runConfigure(service) {
   const validServices = ["cloudflare", "meta", "line", "utage", "google-ads"];
   if (!validServices.includes(service)) {
@@ -41,12 +47,10 @@ async function runConfigure(service) {
     process.exit(1);
   }
 
-  // プロジェクトルートの検出
-  const projectDir = resolve(process.cwd());
-  const wranglerToml = resolve(projectDir, "apps/worker/wrangler.toml");
-  if (!existsSync(wranglerToml)) {
+  const { state, projectDir } = detectProject(process.cwd());
+  if (state === "outside") {
     console.error("\n  プロジェクトルートで実行してください（apps/worker/wrangler.toml が見つかりません）");
-    console.error(`  現在のディレクトリ: ${projectDir}`);
+    console.error(`  現在のディレクトリ: ${process.cwd()}`);
     process.exit(1);
   }
 
@@ -54,10 +58,10 @@ async function runConfigure(service) {
 
   const config = { projectDir };
   const stepMap = {
-    cloudflare: "./steps/cloudflare.js",
-    meta: "./steps/meta.js",
-    line: "./steps/line.js",
-    utage: "./steps/utage.js",
+    cloudflare:   "./steps/cloudflare.js",
+    meta:         "./steps/meta.js",
+    line:         "./steps/line.js",
+    utage:        "./steps/utage.js",
     "google-ads": "./steps/google-ads.js",
   };
 
@@ -67,53 +71,77 @@ async function runConfigure(service) {
 }
 
 function printCompletion(config) {
-  const { projectName, workerUrl, apiKey } = config;
+  const { projectName } = config;
 
   console.log("\n" + "━".repeat(52));
   console.log("  セットアップ完了！");
   console.log("━".repeat(52) + "\n");
 
-  if (workerUrl) console.log(`  Worker URL : ${workerUrl}`);
-  console.log(`  API Key    : ${apiKey}\n`);
-
-  console.log("  ─── Claude Code MCP を登録する ───");
-  console.log(`  cd ${projectName}`);
-  console.log("  pnpm --filter mcp-server build");
-  console.log(
-    `  MARKETING_HARNESS_URL=${workerUrl || "<worker-url>"} MARKETING_HARNESS_API_KEY=${apiKey} \\`
-  );
-  console.log("  claude mcp add marketing-harness -- node ./packages/mcp-server/dist/index.js\n");
-
-  console.log("  ─── Claude Code にログインする（初回のみ） ───");
-  console.log("  claude login\n");
-
   console.log("  ─── 使い始める ───");
-  console.log("  claude\n");
+  console.log(`  cd ${projectName}`);
+  console.log("  marketing-harness\n");
+  console.log("  あとは Claude に話しかけるだけ:");
   console.log("  例: /mh-analyze");
   console.log("  例: 今月 CPA が一番高いキャンペーンを教えて\n");
 
   console.log("  ─── 後から連携を追加するには ───");
   console.log(`  cd ${projectName}`);
-  console.log("  npx marketing-harness configure line   # LINE を追加");
-  console.log("  npx marketing-harness configure utage  # UTAGE を追加\n");
+  console.log("  marketing-harness configure line   # LINE を追加");
+  console.log("  marketing-harness configure utage  # UTAGE を追加\n");
 }
 
 // エントリーポイント
-const [, , subcommand, service] = process.argv;
+const argv = process.argv.slice(2);
+const [sub, svc] = argv;
+const binName = basename(process.argv[1] ?? "");
 
-if (subcommand === "configure") {
-  if (!service) {
-    console.error("\n  使い方: npx marketing-harness configure <service>");
-    console.error("  サービス: cloudflare / meta / line / utage / google-ads\n");
-    process.exit(1);
+const SUBCOMMANDS = new Set(["configure", "launch", "setup", "init", "help", "--help", "-h", "--version", "-v"]);
+
+async function main() {
+  if (sub && SUBCOMMANDS.has(sub)) {
+    switch (sub) {
+      case "configure":
+        if (!svc) {
+          console.error("\n  使い方: marketing-harness configure <service>");
+          console.error("  サービス: cloudflare / meta / line / utage / google-ads\n");
+          process.exit(1);
+        }
+        await runConfigure(svc);
+        break;
+      case "setup":
+      case "init":
+        await runInit();
+        break;
+      case "launch": {
+        const { state, projectDir } = detectProject(process.cwd());
+        if (state === "ready")       await runLaunch(projectDir);
+        else if (state === "broken") runRepair(projectDir ?? process.cwd());
+        else                         runHelpOutsideProject();
+        break;
+      }
+      case "help":
+      case "--help":
+      case "-h":
+        runHelp();
+        break;
+      case "--version":
+      case "-v":
+        console.log("0.3.0");
+        break;
+    }
+  } else if (binName.startsWith("create-")) {
+    // `create-marketing-harness` bin always starts the wizard
+    await runInit();
+  } else {
+    // bare `marketing-harness` — detect project context
+    const { state, projectDir } = detectProject(process.cwd());
+    if (state === "ready")       await runLaunch(projectDir);
+    else if (state === "broken") runRepair(projectDir ?? process.cwd());
+    else                         runHelpOutsideProject();
   }
-  runConfigure(service).catch((err) => {
-    console.error("\n  エラー:", err.message ?? err);
-    process.exit(1);
-  });
-} else {
-  runInit().catch((err) => {
-    console.error("\n  エラー:", err.message ?? err);
-    process.exit(1);
-  });
 }
+
+main().catch((err) => {
+  console.error("\n  エラー:", err.message ?? err);
+  process.exit(1);
+});

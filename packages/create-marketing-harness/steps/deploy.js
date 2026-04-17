@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { printStepHeader, printSuccess, askConfirm } from "../lib/prompts.js";
 import { d1Create, d1Execute, deploy, putSecret } from "../lib/wrangler.js";
+import { writeConfig } from "../lib/config-file.js";
 
 export async function run({ config }) {
   printStepHeader(8, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
@@ -70,5 +71,24 @@ export async function run({ config }) {
 
   printSuccess("デプロイ完了");
   config.workerUrl = workerUrl;
+
+  const now = new Date().toISOString();
+  writeConfig(projectDir, {
+    schemaVersion: 1,
+    projectName: config.projectName,
+    workerUrl,
+    apiKey: config.apiKey,
+    createdAt: now,
+    mcpServerName: "marketing-harness",
+    integrations: {
+      cloudflare: { enabled: true, configuredAt: now },
+      meta:       { enabled: !!(config.meta?.token),                configuredAt: config.meta?.token ? now : undefined },
+      line:       { enabled: !!(config.line?.channelAccessToken),   configuredAt: config.line?.channelAccessToken ? now : undefined },
+      utage:      { enabled: !!(config.utage?.apiKey),              configuredAt: config.utage?.apiKey ? now : undefined },
+      googleAds:  { enabled: !!(config.googleAds?.refreshToken),    configuredAt: config.googleAds?.refreshToken ? now : undefined },
+    },
+    lastLaunchAt: null,
+  });
+
   return { skipped: false };
 }

@@ -8,3 +8,4 @@ dist/
 out/
 *.tsbuildinfo
 .DS_Store
+.marketing-harness/

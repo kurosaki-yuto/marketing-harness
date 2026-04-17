@@ -105,22 +105,14 @@ npx marketing-harness configure cloudflare
 
 ## Claude Code で使い始める
 
-セットアップ完了後、ウィザードが表示するコマンドをそのまま実行:
+セットアップ完了後、これだけ:
 
 ```bash
-# MCP サーバーを登録
 cd my-marketing-harness
-pnpm --filter mcp-server build
-MARKETING_HARNESS_URL=https://your-worker.workers.dev \
-MARKETING_HARNESS_API_KEY=your-api-key \
-claude mcp add marketing-harness -- node ./packages/mcp-server/dist/index.js
-
-# Claude Code にログイン（初回のみ）
-claude login
-
-# Claude Code を起動
-claude
+marketing-harness
 ```
+
+MCP 登録・Claude Code 起動が自動で完了します。初回起動時は直近のキャンペーン状況を自動で俯瞰します。
 
 ```
 /mh-analyze
