@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 import { printStepHeader, askText, printSuccess } from "../lib/prompts.js";
 
-const REPO_URL = "https://github.com/your-org/marketing-harness.git";
+const REPO_URL = "https://github.com/kurosaki-yuto/marketing-harness.git";
 
 export async function run({ config }) {
   printStepHeader(2, "プロジェクト設定", "クローン先のディレクトリ名を設定します");

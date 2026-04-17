@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "start": "node packages/create-marketing-harness/index.js",
     "dev:worker": "pnpm --filter worker dev",
     "dev:web": "pnpm --filter web dev",
     "build": "pnpm -r build",

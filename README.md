@@ -194,6 +194,16 @@ UTAGE REST API ─────────────────→ D1
 
 ---
 
+## 開発者向け: このリポジトリを clone して試す
+
+```bash
+git clone https://github.com/kurosaki-yuto/marketing-harness.git
+cd marketing-harness
+pnpm install && pnpm start
+```
+
+---
+
 ## プロジェクト構成
 
 ```

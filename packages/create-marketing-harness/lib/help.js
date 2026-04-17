@@ -25,25 +25,17 @@ export function runHelp() {
 export function runHelpOutsideProject() {
   printBanner();
   console.log(`
-  まだセットアップが済んでいません。
+  ようこそ。まずはセットアップを始めましょう。
 
-  ─── 初めての方はこちら ───
+  次のコマンドを打ってください:
 
-  1) 新規セットアップ（最初はこれ）:
+      npx create-marketing-harness
 
-       npx create-marketing-harness
+  ウィザードが Cloudflare 認証・Meta Ads・LINE 等を一つずつ案内します。
+  セットアップが終わったら、そのまま起動するか選べます。
 
-     ウィザードが Cloudflare 認証・Meta Ads・LINE 等を一つずつ案内します。
-     セットアップ完了後、そのまま起動するか選べます。
-
-  ─── 既にプロジェクトがある方 ───
-
-  2) プロジェクトディレクトリに移動してから実行:
-
-       cd <project-name>
-       marketing-harness
-
-  困ったら: https://github.com/noukinn/marketing-harness
+  （既にセットアップ済みのプロジェクトがある場合は、そのディレクトリに
+   移動してから再度 marketing-harness を実行してください）
 `);
   process.exit(1);
 }
