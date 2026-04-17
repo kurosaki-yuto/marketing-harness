@@ -10,7 +10,7 @@ import { join, resolve } from "path";
 const REPO_URL = "https://github.com/your-org/marketing-harness.git";
 const LICENSE_SERVER_URL =
   process.env.MARKETING_HARNESS_LICENSE_URL ||
-  "https://marketing-harness-license.your-subdomain.workers.dev";
+  "https://marketing-harness-license.gkoinobori0505.workers.dev";
 
 // Ctrl+C でウィザード中断
 process.on("SIGINT", () => {

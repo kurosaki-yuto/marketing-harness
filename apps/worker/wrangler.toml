@@ -9,6 +9,7 @@ database_name = "marketing-harness"
 database_id = "YOUR_DATABASE_ID_HERE"
 
 [vars]
+LICENSE_SERVER_URL = "https://marketing-harness-license.gkoinobori0505.workers.dev"
 # ALERT_WEBHOOK_URL = "https://your-webhook-endpoint.example.com"  # set via wrangler secret put
 
 [triggers]

@@ -6,4 +6,4 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "marketing-harness-license"
-database_id = "YOUR_LICENSE_DB_ID_HERE"
+database_id = "ab51b33a-9cc1-404f-872e-e086077d0dfa"
