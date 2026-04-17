@@ -128,7 +128,7 @@ async function main() {
       case "launch": {
         const { state, projectDir } = detectProject(process.cwd());
         if (state === "ready")       await runLaunch(projectDir, { raw });
-        else if (state === "broken") runRepair(projectDir ?? process.cwd());
+        else if (state === "broken") await runInit();
         else                         runHelpOutsideProject();
         break;
       }
@@ -147,7 +147,7 @@ async function main() {
   } else {
     const { state, projectDir } = detectProject(process.cwd());
     if (state === "ready")       await runLaunch(projectDir, { raw });
-    else if (state === "broken") runRepair(projectDir ?? process.cwd());
+    else if (state === "broken") await runInit();
     else                         runHelpOutsideProject();
   }
 }

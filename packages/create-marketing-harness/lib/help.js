@@ -49,12 +49,12 @@ export function runRepair(projectDir) {
   以下を実行してセットアップを再開してください:
 
     cd ${projectDir}
-    npx create-marketing-harness
+    pnpm start
 
   原因が分からない場合は、プロジェクトを一度削除してやり直すのが早いです:
 
     rm -rf ${projectDir}
-    npx create-marketing-harness
+    pnpm start
 `);
   process.exit(1);
 }
