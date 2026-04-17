@@ -3,6 +3,7 @@ import { readConfig, touchLastLaunch } from "../lib/config-file.js";
 import { assertClaudeCli, isMcpRegistered, registerMcp, ensureMcpBuilt } from "../lib/claude-cli.js";
 import { loadCommands } from "../lib/command-loader.js";
 import { printMenuBanner, renderMainMenu, renderConfigureMenu } from "../lib/menu.js";
+import { MARKETING_HARNESS_SYSTEM_PROMPT } from "../lib/system-prompt.js";
 
 export async function run({ projectDir, raw = false }) {
   const cfg = readConfig(projectDir);
@@ -28,8 +29,10 @@ export async function run({ projectDir, raw = false }) {
     MARKETING_HARNESS_API_KEY: cfg.apiKey,
   };
 
+  const sysArgs = ["--append-system-prompt", MARKETING_HARNESS_SYSTEM_PROMPT];
+
   if (raw || process.env.MH_RAW === "1") {
-    await spawnClaude([], { cwd: projectDir, env });
+    await spawnClaude(sysArgs, { cwd: projectDir, env });
     return;
   }
 
@@ -57,8 +60,8 @@ export async function run({ projectDir, raw = false }) {
     process.exit(0);
   }
 
-  const args = choice.type === "slash" ? [choice.slug] : [];
-  await spawnClaude(args, { cwd: projectDir, env });
+  const promptArg = choice.type === "slash" ? [choice.slug] : [];
+  await spawnClaude([...sysArgs, ...promptArg], { cwd: projectDir, env });
 }
 
 async function spawnClaude(args, opts) {
