@@ -26,3 +26,14 @@ accountsRouter.put("/", async (c) => {
     .run();
   return c.json({ success: true });
 });
+
+accountsRouter.post("/rotate-key", async (c) => {
+  const accountId = c.get("accountId");
+  const newKey = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+  await c.env.DB.prepare(
+    "UPDATE accounts SET api_key = ?, updated_at = datetime('now') WHERE id = ?"
+  )
+    .bind(newKey, accountId)
+    .run();
+  return c.json({ api_key: newKey });
+});

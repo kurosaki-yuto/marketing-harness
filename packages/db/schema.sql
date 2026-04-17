@@ -139,6 +139,34 @@ CREATE TABLE IF NOT EXISTS reports (
   UNIQUE (account_id, company_id, month)
 );
 
+-- SNS アカウント連携
+CREATE TABLE IF NOT EXISTS social_accounts (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'tiktok', 'x', 'youtube')),
+  external_account_id TEXT NOT NULL,
+  account_name TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  connected_at TEXT DEFAULT (datetime('now'))
+);
+
+-- SNS 投稿（予約・公開管理）
+CREATE TABLE IF NOT EXISTS social_posts (
+  id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  social_account_id TEXT NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL CHECK (platform IN ('instagram', 'tiktok', 'x', 'youtube')),
+  type TEXT NOT NULL CHECK (type IN ('feed', 'story', 'reel', 'short')),
+  media_url TEXT NOT NULL,
+  caption TEXT,
+  scheduled_at TEXT,
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published', 'failed')),
+  external_post_id TEXT,
+  error_message TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  published_at TEXT
+);
+
 -- インデックス
 CREATE INDEX IF NOT EXISTS idx_companies_account ON companies(account_id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_account ON campaigns(account_id, company_id);
@@ -149,3 +177,5 @@ CREATE INDEX IF NOT EXISTS idx_knowledge_account ON knowledge(account_id, status
 CREATE INDEX IF NOT EXISTS idx_history_campaign ON change_history(account_id, company_id, campaign_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_kpi_campaign ON kpi_settings(account_id, campaign_id);
 CREATE INDEX IF NOT EXISTS idx_reports_month ON reports(account_id, company_id, month);
+CREATE INDEX IF NOT EXISTS idx_social_accounts_account ON social_accounts(account_id);
+CREATE INDEX IF NOT EXISTS idx_social_posts_account ON social_posts(account_id, status, scheduled_at);

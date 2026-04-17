@@ -13,6 +13,9 @@ export default function SettingsPage() {
   const [workerUrl, setWorkerUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [signupName, setSignupName] = useState("");
+  const [signupResult, setSignupResult] = useState<{ id: string; api_key: string } | null>(null);
+  const [signingUp, setSigningUp] = useState(false);
 
   useEffect(() => {
     setApiKey(localStorage.getItem("mh_api_key") ?? "");
@@ -37,6 +40,27 @@ claude mcp add marketing-harness \\
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSigningUp(true);
+    try {
+      const res = await fetch(`${workerUrl || "http://localhost:8787"}/api/accounts/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: signupName }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { id: string; api_key: string };
+      setSignupResult(data);
+      setApiKey(data.api_key);
+      localStorage.setItem("mh_api_key", data.api_key);
+    } catch (err) {
+      alert(`作成失敗: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSigningUp(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -45,6 +69,32 @@ claude mcp add marketing-harness \\
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto space-y-6">
             <h1 className="text-xl font-bold text-black">設定</h1>
+
+            <Card>
+              <CardHeader><CardTitle>アカウント作成</CardTitle></CardHeader>
+              <p className="text-sm text-black/60 mb-3">
+                まだアカウントがない場合はここから作成してください。APIキーが発行されます。
+              </p>
+              {signupResult ? (
+                <div className="rounded-lg bg-green-50 border border-green-200 p-3 space-y-1">
+                  <p className="text-xs font-medium text-green-800">作成成功。以下のAPIキーを保存してください（一度しか表示されません）。</p>
+                  <p className="text-xs font-mono break-all text-green-900">{signupResult.api_key}</p>
+                  <p className="text-xs text-green-700">自動的に「接続設定」に反映されました。</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSignup} className="flex gap-2">
+                  <Input
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    placeholder="アカウント名（例: 株式会社XXX）"
+                    required
+                  />
+                  <Button size="sm" type="submit" disabled={signingUp}>
+                    {signingUp ? "作成中..." : "作成"}
+                  </Button>
+                </form>
+              )}
+            </Card>
 
             <Card>
               <CardHeader><CardTitle>接続設定</CardTitle></CardHeader>

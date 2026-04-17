@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "@marketing-harness/ads-sdk": "workspace:*",
     "hono": "^4.7.0"
   },
   "devDependencies": {

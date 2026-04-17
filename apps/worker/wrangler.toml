@@ -9,6 +9,7 @@ database_name = "marketing-harness"
 database_id = "YOUR_DATABASE_ID_HERE"
 
 [vars]
+# ALERT_WEBHOOK_URL = "https://your-webhook-endpoint.example.com"  # set via wrangler secret put
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "0 2 * * *"]
