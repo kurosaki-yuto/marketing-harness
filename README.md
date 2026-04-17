@@ -23,6 +23,18 @@ Cloudflare 無料枠で動く。サーバー代 0 円。Claude Code から全操
 
 ---
 
+## コミュニティライセンス制
+
+marketing-harness のコードは **MIT ライセンス**で公開していますが、実際に動かすには **コミュニティメンバーシップ（月額）** から発行されるライセンスキーが必要です。
+
+- ライセンスキーは `npx create-marketing-harness` のセットアップ時に入力します
+- 退会・解約した場合はキーが即座に失効し、Worker へのアクセスが遮断されます
+- セルフホストした license-server を使って独自に管理することも可能です（詳細は末尾参照）
+
+> ライセンスキーの取得: [コミュニティ参加ページ（準備中）]
+
+---
+
 ## 機能
 
 - **AIチャット改善提案** — ナレッジをRAGで参照しながらClaude APIがCPA改善策を提案
@@ -119,57 +131,70 @@ claude
 ### 前提条件
 
 - Node.js 20+, pnpm 9+
-- [Cloudflare アカウント](https://dash.cloudflare.com/sign-up)
+- [Cloudflare アカウント](https://dash.cloudflare.com/sign-up)（無料枠で動作）
 - [Anthropic API キー](https://console.anthropic.com/)
-- Meta Ads アカウント
+- コミュニティライセンスキー（`mh_` から始まる）
 
-### 1. セットアップ
+### ワンコマンドセットアップ
+
+```bash
+npx create-marketing-harness
+```
+
+ウィザードに従って進むだけで、以下が全自動で完了します:
+
+1. ライセンスキー検証
+2. Cloudflare 認証（未ログインなら自動でブラウザを開く）
+3. リポジトリのクローン
+4. D1 データベースの作成 + スキーマ適用
+5. シークレット（API キー等）の投入
+6. Workers へのデプロイ
+
+完了後は表示されるコマンドで Claude Code MCP を登録して使い始めてください。
+
+```bash
+# 例
+/mh-analyze
+/mh-report 2026-04
+今月 CPA が一番高いキャンペーンを教えて
+```
+
+<details>
+<summary>手動セットアップ手順（CLI が裏でやっていること）</summary>
 
 ```bash
 git clone https://github.com/your-org/marketing-harness.git
 cd marketing-harness
 pnpm install
-```
 
-### 2. D1 データベース作成
-
-```bash
+# D1 データベース作成
 npx wrangler d1 create marketing-harness
 # → 出力される database_id を apps/worker/wrangler.toml に記入
-
 npx wrangler d1 execute marketing-harness --file=packages/db/schema.sql
-```
 
-### 3. シークレット設定
-
-```bash
+# シークレット設定
 npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put META_ACCESS_TOKEN
 npx wrangler secret put META_AD_ACCOUNT_ID
 npx wrangler secret put API_KEY
-```
+npx wrangler secret put LICENSE_KEY
+npx wrangler secret put LICENSE_SERVER_URL
 
-### 4. デプロイ
-
-```bash
+# デプロイ
 pnpm deploy:worker
 # → https://your-worker.your-subdomain.workers.dev
-```
 
-### 5. 管理画面
-
-```bash
+# 管理画面
 cp .env.example apps/web/.env.local
 # NEXT_PUBLIC_WORKER_URL を設定
 pnpm dev:web
-```
 
-### 6. Claude Code 連携
-
-```bash
+# Claude Code 連携
+pnpm --filter mcp-server build
 claude mcp add marketing-harness -- node ./packages/mcp-server/dist/index.js
-# Claude Code で「今月のCPA教えて」と聞いてみる
 ```
+
+</details>
 
 ---
 
@@ -188,6 +213,40 @@ marketing-harness/
 │   └── shared/           # 共有型定義
 └── docs/wiki/            # ドキュメント
 ```
+
+---
+
+## License Server セルフホスト（上級者向け）
+
+`apps/license-server/` に同梱の Cloudflare Worker を使って独自のライセンスサーバーを運営できます。
+
+```bash
+# 1. D1 DB 作成
+npx wrangler d1 create marketing-harness-license
+# → database_id を apps/license-server/wrangler.toml に記入
+
+# 2. スキーマ適用
+npx wrangler d1 execute marketing-harness-license --file=apps/license-server/schema.sql
+
+# 3. 管理トークン設定
+npx wrangler secret put ADMIN_TOKEN   # 任意の強力なトークン
+
+# 4. デプロイ
+cd apps/license-server && npx wrangler deploy
+
+# 5. ライセンス発行
+curl -X POST https://your-license-server.workers.dev/admin/licenses \
+  -H "X-Admin-Token: <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"member@example.com","plan":"community"}'
+# → {"key":"mh_xxx...","plan":"community"}
+
+# 6. ライセンス失効（退会処理）
+curl -X DELETE https://your-license-server.workers.dev/admin/licenses/mh_xxx \
+  -H "X-Admin-Token: <ADMIN_TOKEN>"
+```
+
+Worker 側の `LICENSE_SERVER_URL` を自分のサーバー URL に設定すれば完全独立運用できます。
 
 ---
 

@@ -6,6 +6,11 @@ CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   name TEXT NOT NULL,
   api_key TEXT NOT NULL UNIQUE,
+  license_key TEXT,
+  license_plan TEXT DEFAULT 'community',
+  license_expires_at TEXT,
+  license_last_verified_at TEXT,
+  instance_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
