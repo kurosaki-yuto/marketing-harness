@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { basename } from "path";
+import { basename, resolve } from "path";
+import prompts from "prompts";
 import { printHeader } from "./lib/prompts.js";
 import { detectProject } from "./lib/project-detect.js";
 import { runHelp, runHelpOutsideProject, runRepair } from "./lib/help.js";
@@ -31,7 +32,7 @@ async function runInit() {
   await googleAdsStep({ config, mode: "init" });
   await deployStep({ config });
 
-  printCompletion(config);
+  await printCompletionAndMaybeLaunch(config);
 }
 
 async function runLaunch(projectDir, { raw = false } = {}) {
@@ -70,24 +71,33 @@ async function runConfigure(service) {
   console.log("\n  設定が完了しました。Worker を再起動中の場合は少し待ってください。\n");
 }
 
-function printCompletion(config) {
-  const { projectName } = config;
+async function printCompletionAndMaybeLaunch(config) {
+  const { projectName, projectDir } = config;
 
-  console.log("\n" + "━".repeat(52));
-  console.log("  セットアップ完了！");
-  console.log("━".repeat(52) + "\n");
+  console.log("\n╔══════════════════════════════════════════════╗");
+  console.log("║   セットアップ完了！                          ║");
+  console.log("╚══════════════════════════════════════════════╝\n");
 
-  console.log("  ─── 使い始める ───");
-  console.log(`  cd ${projectName}`);
-  console.log("  marketing-harness\n");
-  console.log("  あとは Claude に話しかけるだけ:");
-  console.log("  例: /mh-analyze");
-  console.log("  例: 今月 CPA が一番高いキャンペーンを教えて\n");
+  const { launchNow } = await prompts({
+    type: "confirm",
+    name: "launchNow",
+    message: "今すぐ marketing-harness を起動しますか？",
+    initial: true,
+  });
 
-  console.log("  ─── 後から連携を追加するには ───");
-  console.log(`  cd ${projectName}`);
-  console.log("  marketing-harness configure line   # LINE を追加");
-  console.log("  marketing-harness configure utage  # UTAGE を追加\n");
+  if (launchNow) {
+    const target = projectDir ?? resolve(process.cwd(), projectName);
+    await runLaunch(target);
+    return;
+  }
+
+  console.log(`\n  次に打つコマンド:`);
+  console.log(`    cd ${projectName}`);
+  console.log(`    marketing-harness\n`);
+  console.log(`  後から連携を追加するには:`);
+  console.log(`    marketing-harness configure line    # LINE を追加`);
+  console.log(`    marketing-harness configure utage   # UTAGE を追加`);
+  console.log(`    marketing-harness configure google-ads\n`);
 }
 
 // エントリーポイント
