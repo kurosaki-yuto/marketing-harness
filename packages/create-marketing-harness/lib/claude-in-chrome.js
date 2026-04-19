@@ -1,6 +1,24 @@
 import { execa } from "execa";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 import { askText, printInfo } from "./prompts.js";
 import { loadSpec, buildPrompt, getExtracts } from "./spec-loader.js";
+
+function hasClaudeInChromeMcp() {
+  const checkFiles = [
+    join(homedir(), ".claude", "settings.json"),
+    join(process.cwd(), ".mcp.json"),
+    join(process.cwd(), ".claude", "settings.json"),
+  ];
+  for (const f of checkFiles) {
+    try {
+      const text = readFileSync(f, "utf8");
+      if (text.includes("claude-in-chrome")) return true;
+    } catch {}
+  }
+  return false;
+}
 
 export async function runWithClaudeInChrome({ specId }) {
   const spec = loadSpec(specId);
@@ -13,12 +31,17 @@ export async function runWithClaudeInChrome({ specId }) {
     buildPrompt(spec),
   ].join("\n");
 
-  // claude CLI が使えるか確認
-  const claudeAvailable = await execa("claude", ["--version"], { reject: false })
+  // claude-in-chrome MCP が登録されているか静的チェック
+  const mcpAvailable = hasClaudeInChromeMcp();
+  // claude CLI 自体の存在確認
+  const claudeAvailable = mcpAvailable && await execa("claude", ["--version"], { reject: false })
     .then((r) => r.exitCode === 0)
     .catch(() => false);
 
   if (!claudeAvailable) {
+    if (mcpAvailable === false) {
+      console.log("  （Claude in Chrome MCP が未登録のため、手動入力で進めます）");
+    }
     return await fallbackClipboard(specId, spec, extracts, fullPrompt);
   }
 

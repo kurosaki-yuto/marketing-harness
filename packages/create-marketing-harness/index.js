@@ -15,10 +15,6 @@ async function runInit() {
   const { run: licenseStep }    = await import("./steps/license.js");
   const { run: projectStep }    = await import("./steps/project.js");
   const { run: cloudflareStep } = await import("./steps/cloudflare.js");
-  const { run: metaStep }       = await import("./steps/meta.js");
-  const { run: lineStep }       = await import("./steps/line.js");
-  const { run: utageStep }      = await import("./steps/utage.js");
-  const { run: googleAdsStep }  = await import("./steps/google-ads.js");
   const { run: deployStep }     = await import("./steps/deploy.js");
 
   const config = {};
@@ -26,10 +22,6 @@ async function runInit() {
   await licenseStep({ config });
   await projectStep({ config });
   await cloudflareStep({ config, mode: "init" });
-  await metaStep({ config, mode: "init" });
-  await lineStep({ config, mode: "init" });
-  await utageStep({ config, mode: "init" });
-  await googleAdsStep({ config, mode: "init" });
   await deployStep({ config });
   await telemetryOptOutStep({ config });
 
@@ -74,8 +66,9 @@ async function runConfigure(service) {
 
 async function telemetryOptOutStep({ config }) {
   const { writeConfig } = await import("./lib/config-file.js");
+  const { printStepHeader } = await import("./lib/prompts.js");
   const { projectDir } = config;
-  console.log("\n  ── コミュニティへの貢献 ──────────────────────────────");
+  printStepHeader(5, "コミュニティへの貢献（任意）", "匿名の利用データで AI の提案精度が向上します");
   console.log("  キャンペーン構成・変更・成果の匿名データを集合知として送信できます。");
   console.log("  個人情報・クリエイティブ内容は送信されません。後からいつでも変更可能です。\n");
   const { enable } = await prompts({
@@ -86,16 +79,27 @@ async function telemetryOptOutStep({ config }) {
   });
   if (!enable && projectDir) {
     writeConfig(projectDir, { telemetry: { enabled: false } });
-    console.log("  テレメトリをオフにしました。後から有効化: marketing-harness configure telemetry\n");
+    console.log("  テレメトリをオフにしました。\n");
   }
 }
 
 async function printCompletionAndMaybeLaunch(config) {
-  const { projectName, projectDir } = config;
+  const { projectName, projectDir, workerUrl } = config;
 
   console.log("\n╔══════════════════════════════════════════════╗");
   console.log("║   セットアップ完了！                          ║");
   console.log("╚══════════════════════════════════════════════╝\n");
+
+  if (workerUrl) {
+    console.log(`  Worker URL : ${workerUrl}`);
+    console.log(`  管理画面   : ${workerUrl}/admin\n`);
+  }
+
+  console.log("  広告プラットフォームを接続するには（後からいつでも可）:");
+  console.log("    marketing-harness configure meta         # Meta 広告");
+  console.log("    marketing-harness configure google-ads   # Google 広告");
+  console.log("    marketing-harness configure line         # LINE Messaging");
+  console.log("    marketing-harness configure utage        # UTAGE\n");
 
   const { launchNow } = await prompts({
     type: "confirm",
@@ -107,16 +111,7 @@ async function printCompletionAndMaybeLaunch(config) {
   if (launchNow) {
     const target = projectDir ?? resolve(process.cwd(), projectName);
     await runLaunch(target);
-    return;
   }
-
-  console.log(`\n  次に打つコマンド:`);
-  console.log(`    cd ${projectName}`);
-  console.log(`    marketing-harness\n`);
-  console.log(`  後から連携を追加するには:`);
-  console.log(`    marketing-harness configure line    # LINE を追加`);
-  console.log(`    marketing-harness configure utage   # UTAGE を追加`);
-  console.log(`    marketing-harness configure google-ads\n`);
 }
 
 // エントリーポイント
