@@ -16,8 +16,12 @@ export default async function KnowledgePage() {
     <>
       <header className="bg-white border-b border-black/10 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin/licenses" className="text-sm text-black/50 hover:text-black">ライセンス</Link>
-          <span className="font-semibold text-black">中央ナレッジ</span>
+          <span className="font-semibold text-black">marketing-harness admin</span>
+          <nav className="flex gap-2 text-sm">
+            <Link href="/admin/licenses" className="text-black/50 hover:text-black transition-colors">ライセンス</Link>
+            <Link href="/admin/knowledge" className="text-black font-medium">ナレッジ</Link>
+            <Link href="/admin/usage" className="text-black/50 hover:text-black transition-colors">利用状況</Link>
+          </nav>
         </div>
         <form action={logoutAction}>
           <Button type="submit" variant="ghost" size="sm">ログアウト</Button>
