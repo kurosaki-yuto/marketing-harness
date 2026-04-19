@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../index";
+import { sendTelemetry } from "../lib/telemetry";
 
 export const kpiRouter = new Hono<{
   Bindings: Env;
@@ -40,6 +41,7 @@ kpiRouter.post("/", async (c) => {
       JSON.stringify(body.thresholds ?? {})
     )
     .run();
+  sendTelemetry(c.env, "kpi.set", { campaign_id: body.campaign_id, targets: body.targets, thresholds: body.thresholds });
   return c.json({ success: true }, 201);
 });
 

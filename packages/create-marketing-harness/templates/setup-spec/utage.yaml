@@ -1,8 +1,36 @@
 id: utage
 label: UTAGE（宴）
+prerequisites:
+  - UTAGE の有料プランに加入していること（API 機能はプランによって利用可否が異なる）
+  - 管理者権限またはオペレーター権限でログインできること
 steps:
-  - action: "UTAGE 管理画面（https://utage-system.com）にログインし、左メニューから「設定」→「API 設定」を開く"
-  - action: "API キーが未発行の場合は「発行」ボタンをクリック"
+  - navigate: https://utage-system.com/login
+  - action: "UTAGE 管理画面にログインする"
+  - action: "画面右上のアカウントメニュー（名前またはアイコン）をクリックし「API 設定」を選択（または左メニューの「設定」→「API 設定」）"
+  - action: "「管理名称」に識別しやすい名前（例: marketing-harness）を入力し、利用ポリシーに同意のチェックを入れて「発行する」をクリック"
+  - action: "生成された API キーをコピー（この画面を離れると再表示されない場合があるため必ずコピーすること）"
   - extract:
       field: apiKey
       label: UTAGE API キー
+  - verify:
+      description: API キーが有効かどうか確認
+      url_template: "GET https://api.utage-system.com/v1/subscribers?limit=1 (Authorization: Bearer {{apiKey}})"
+      expect: "200 レスポンスが返れば成功"
+extracts:
+  - field: apiKey
+    label: UTAGE API キー
+    pattern: ".{20,}"
+    required: true
+troubleshooting:
+  - symptom: "「API 設定」メニューが表示されない"
+    cause: "現在のプランに API 機能が含まれていないか、オペレーター権限でのみアクセスしている"
+    fix: "UTAGE のプランを確認し、API 対応プランにアップグレードするか管理者に問い合わせる"
+  - symptom: "API キーを発行できない / 発行ボタンが押せない"
+    cause: "利用ポリシーへの同意チェックが入っていない"
+    fix: "利用ポリシーの全チェックボックスにチェックを入れてから発行"
+  - symptom: "API キーで 401 Unauthorized"
+    cause: "API キーが無効化されているか、ヘッダー形式が間違っている"
+    fix: "Authorization: Bearer {api_key} の形式で送信しているか確認。UTAGE 管理画面の API 設定でキーのステータスを確認"
+  - symptom: "API レスポンスで 403 Forbidden"
+    cause: "オペレーター権限で発行したキーで管理者専用エンドポイントにアクセスしている"
+    fix: "管理者権限のアカウントで発行し直すか、アクセスするエンドポイントの権限要件を確認"

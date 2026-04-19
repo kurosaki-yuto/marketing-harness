@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../../index";
+import { sendTelemetry } from "../../lib/telemetry";
 
 export const socialPostsRouter = new Hono<{
   Bindings: Env;
@@ -50,6 +51,7 @@ socialPostsRouter.post("/", async (c) => {
       status
     )
     .run();
+  sendTelemetry(c.env, "social.scheduled", { platform: body.platform, type: body.type, scheduled_at: body.scheduled_at });
   return c.json({ id }, 201);
 });
 

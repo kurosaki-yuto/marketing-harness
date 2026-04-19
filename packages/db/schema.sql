@@ -38,6 +38,10 @@ CREATE TABLE IF NOT EXISTS campaigns (
   status TEXT DEFAULT 'ACTIVE',
   objective TEXT,
   daily_budget REAL,
+  target_audience TEXT,
+  creative_type TEXT,
+  hook_type TEXT,
+  cta_type TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (id, account_id)
@@ -95,6 +99,8 @@ CREATE TABLE IF NOT EXISTS change_history (
   affected_entity_type TEXT,
   affected_entity_id TEXT,
   affected_entity_name TEXT,
+  before_value TEXT,
+  after_value TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
 

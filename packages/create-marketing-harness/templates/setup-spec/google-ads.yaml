@@ -1,26 +1,68 @@
 id: google-ads
 label: Google Ads
+prerequisites:
+  - Google Ads マネージャーアカウント（MCC）が必要。Developer Token は MCC でのみ発行可能
+  - Google Cloud プロジェクトが存在すること（なければ新規作成する）
+  - 使用する Google アカウントに Ads の管理権限があること
 steps:
   - navigate: https://ads.google.com/aw/apicenter
+  - action: "「API アクセス」タブを開く。Developer Token が表示されていればコピー。表示されていない場合は「API アクセスを申請」をクリックして申請（審査に 1〜5 営業日かかる。審査待ちの場合はこのステップをスキップして後で再設定）"
   - extract:
       field: developerToken
-      label: Developer Token（「APIセンター」ページに表示されている文字列）
+      label: Developer Token（22 文字程度の英数字）
   - navigate: https://console.cloud.google.com/apis/credentials
-  - action: "「認証情報を作成」→「OAuth クライアント ID」をクリック。アプリケーションの種類を「デスクトップ アプリ」に設定して作成"
+  - action: "画面上部でプロジェクトを選択（または新規作成）。「+ 認証情報を作成」→「OAuth クライアント ID」をクリック"
+  - action: "アプリケーションの種類は「ウェブ アプリケーション」を選択。「承認済みのリダイレクト URI」に「https://developers.google.com/oauthplayground」を追加して「作成」"
   - extract:
       field: clientId
-      label: OAuth2 クライアント ID（作成後に表示される xxxxx.apps.googleusercontent.com 形式）
+      label: OAuth2 クライアント ID（〜.apps.googleusercontent.com 形式）
   - extract:
       field: clientSecret
       label: OAuth2 クライアントシークレット
+  - action: "同じ Google Cloud の左メニュー「OAuth 同意画面」を確認。公開ステータスが「テスト」の場合、外部ユーザーに使わせる場合は「アプリを公開」をクリック（テストのままだと refresh token が 7 日で自動失効）"
   - navigate: https://developers.google.com/oauthplayground/
-  - action: "右上の歯車アイコンをクリックし「Use your own OAuth credentials」にチェック。クライアント ID とシークレットを入力して閉じる"
-  - action: "左側の API 一覧から「Google Ads API v18」を展開し「https://www.googleapis.com/auth/adwords」を選択。「Authorize APIs」をクリックして Google アカウントで認証"
-  - action: "「Exchange authorization code for tokens」をクリック"
+  - action: "右上の歯車アイコン（設定）をクリックし「Use your own OAuth credentials」にチェック。OAuth Client ID と Client Secret を入力して閉じる"
+  - action: "左パネルのスコープ選択で「Google Ads API」を展開し「https://www.googleapis.com/auth/adwords」を選択して「Authorize APIs」をクリック。Google アカウントでログインして許可"
+  - action: "Step 2 の「Exchange authorization code for tokens」ボタンをクリック。Refresh token 欄に表示される値をコピー（access token は不要）"
   - extract:
       field: refreshToken
-      label: Refresh token（Step 2 に表示される文字列）
+      label: Refresh token（「1//」で始まる文字列）
   - navigate: https://ads.google.com/
+  - action: "右上のアカウント名をクリック。MCC の場合はクライアントアカウントに切り替え。右上または URL に表示される「123-456-7890」形式のIDを確認"
   - extract:
       field: customerId
-      label: カスタマー ID（右上に表示される 123-456-7890 形式の数字をハイフンなしで）
+      label: カスタマー ID（ハイフンなしの 10 桁数字。例: 1234567890）
+extracts:
+  - field: developerToken
+    label: Developer Token
+    pattern: "^[A-Za-z0-9_-]{15,30}$"
+    required: true
+  - field: clientId
+    label: OAuth2 クライアント ID
+    pattern: "\\.apps\\.googleusercontent\\.com$"
+    required: true
+  - field: clientSecret
+    label: OAuth2 クライアントシークレット
+    pattern: "^GOCSPX-|^[A-Za-z0-9_-]{24,}"
+    required: true
+  - field: refreshToken
+    label: Refresh token
+    pattern: "^1//"
+    required: true
+  - field: customerId
+    label: カスタマー ID
+    pattern: "^[0-9]{8,12}$"
+    required: true
+troubleshooting:
+  - symptom: "apicenter にアクセスできない / Developer Token が表示されない"
+    cause: "ログイン中のアカウントが MCC（マネージャーアカウント）ではない"
+    fix: "ads.google.com 右上のアカウント切替から MCC アカウントに切り替え。MCCがない場合は ads.google.com/intl/ja_jp/home/tools/manager-accounts/ から作成"
+  - symptom: "Refresh token が返ってこない（access_token のみ）"
+    cause: "OAuth Playground でアクセスタイプが Online になっているか、自分のOAuth認証情報を使っていない"
+    fix: "歯車設定で「Use your own OAuth credentials」を必ず有効化し、Access type が Offline であることを確認"
+  - symptom: "リフレッシュトークンが 7 日で失効する"
+    cause: "OAuth 同意画面がテスト状態のまま"
+    fix: "console.cloud.google.com > APIs & Services > OAuth consent screen > Publish App で本番公開"
+  - symptom: "API コールで 403 PERMISSION_DENIED"
+    cause: "Developer Token のアクセスレベルが Test のまま（テストアカウントにしかアクセスできない）"
+    fix: "apicenter で Basic Access を申請して承認を待つ。テスト中は Test Manager Account で動作確認可能"

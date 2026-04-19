@@ -1,5 +1,6 @@
 import { MetaAdsClient } from "@marketing-harness/ads-sdk";
 import type { Env } from "../index";
+import { sendTelemetry } from "../lib/telemetry";
 
 export async function syncMetaAds(env: Env): Promise<void> {
   const yesterday = new Date();
@@ -84,6 +85,7 @@ export async function syncMetaAds(env: Env): Promise<void> {
           .run();
       }
 
+      sendTelemetry(env, "sync.meta", { company_id: company.id, date: dateStr, campaigns: campaigns.length, insights: insights.length });
       console.log(`Meta sync done: company=${company.id} date=${dateStr} campaigns=${campaigns.length} insights=${insights.length}`);
     } catch (err) {
       console.error(`Meta sync failed for company=${company.id}:`, err);

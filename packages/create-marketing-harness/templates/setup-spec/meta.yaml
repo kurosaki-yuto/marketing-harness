@@ -1,14 +1,48 @@
 id: meta
 label: Meta 広告
+prerequisites:
+  - Meta Business Manager に管理者権限でアクセスできること
+  - 広告アカウントが Business Manager に紐付いていること（個人アカウントは不可）
+  - Meta アプリ（またはデフォルトの「Marketing API」アプリ）が Business Manager に存在すること
+  - 2段階認証を有効化しておくこと（トークン発行時に要求される場合あり）
 steps:
   - navigate: https://business.facebook.com/settings/system-users
-  - action: "「システムユーザーを追加」ボタンをクリック。名前を任意で入力し、ロールを「管理者」に設定して作成"
-  - action: "作成したシステムユーザーを選択し「トークンを生成」をクリック"
-  - action: "有効期限を「無期限」に設定し、権限一覧から ads_read と ads_management にチェックを入れてトークンを発行"
+  - action: "「システムユーザーを追加」をクリック。名前（例: marketing-harness）を入力し、ロールは「管理者」を選択して「システムユーザーを作成」"
+  - action: "作成したシステムユーザーを選択し「アセットを追加」をクリック。「広告アカウント」を選択し、対象アカウントに「キャンペーンの管理」権限を付与して保存"
+  - action: "「新しいトークンを生成」をクリック。アプリは「Marketing API」（または既存のアプリ）を選択。有効期限は「無期限」を選択"
+  - action: "権限スコープで以下を有効化: ads_read / ads_management / business_management / pages_read_engagement。「トークンを生成」をクリック"
+  - action: "表示されたトークン（長い文字列）をコピー。この画面を閉じると再表示されないため必ずコピーすること"
   - extract:
       field: token
-      label: システムユーザートークン（EAA で始まる長い文字列）
-  - navigate: https://adsmanager.facebook.com/
+      label: システムユーザートークン（EAA で始まる 100 文字以上の文字列）
+  - navigate: https://business.facebook.com/settings/ad-accounts
+  - action: "一覧から対象の広告アカウントをクリック。「広告アカウント ID」欄の act_XXXXXXXXXX 形式の値を確認"
   - extract:
       field: accountId
-      label: 広告アカウントID（URL に含まれる act_XXXXXXXXXX 形式、または右上のアカウント名の下に表示）
+      label: 広告アカウント ID（act_XXXXXXXXXX 形式）
+  - verify:
+      description: トークンが有効かどうか Graph API で確認
+      url_template: "https://graph.facebook.com/v20.0/me?access_token={{token}}"
+      expect: "id フィールドを含む JSON が返れば成功"
+extracts:
+  - field: token
+    label: システムユーザートークン
+    pattern: "^EAA[A-Za-z0-9_-]{80,}$"
+    required: true
+  - field: accountId
+    label: 広告アカウント ID
+    pattern: "^act_[0-9]{8,}$"
+    required: true
+troubleshooting:
+  - symptom: "「このアプリはシステムユーザーにインストールされていません」と表示される"
+    cause: "選択したアプリがシステムユーザーに紐付いていない"
+    fix: "システムユーザーの「アセットを追加」からアプリを追加するか、アプリ管理者に依頼する"
+  - symptom: "トークンが 60 日で失効してしまう"
+    cause: "システムユーザートークンではなく通常ユーザートークンを取得してしまっている"
+    fix: "Business Manager > 設定 > システムユーザー から再発行。個人アカウントのトークンは使用しない"
+  - symptom: "広告アカウント ID が Business Manager 設定で見つからない"
+    cause: "広告アカウントが Business Manager にまだ紐付いていない"
+    fix: "ビジネス設定 > データソース > 広告アカウント > 追加 から既存アカウントを紐付ける"
+  - symptom: "トークン生成画面で権限スコープが表示されない"
+    cause: "使用しているアプリに必要な機能が有効化されていない"
+    fix: "アプリ設定から「Marketing API」機能を追加する"

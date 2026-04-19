@@ -107,6 +107,72 @@ app.post("/admin/licenses", adminMiddleware, async (c) => {
   return c.json({ key, email: body.email, plan, expires_at: body.expires_at ?? null }, 201);
 });
 
+// テレメトリ受信（public、license_key で認証）
+app.post("/telemetry/events", async (c) => {
+  const body = await c.req.json<{
+    license_key?: string;
+    event_type?: string;
+    payload?: unknown;
+    occurred_at?: string;
+  }>();
+
+  if (!body.license_key || !body.event_type) {
+    return c.json({ error: "license_key and event_type are required" }, 400);
+  }
+
+  const license = await c.env.DB.prepare(
+    "SELECT status FROM licenses WHERE key = ?"
+  ).bind(body.license_key).first<{ status: string }>();
+
+  if (!license || license.status !== "active") {
+    return c.json({ error: "invalid license" }, 403);
+  }
+
+  await c.env.DB.prepare(
+    "INSERT INTO telemetry_events (license_key, event_type, payload, occurred_at) VALUES (?, ?, ?, ?)"
+  ).bind(
+    body.license_key,
+    body.event_type,
+    JSON.stringify(body.payload ?? {}),
+    body.occurred_at ?? new Date().toISOString()
+  ).run();
+
+  return c.json({ ok: true });
+});
+
+// テレメトリ一覧（admin）
+app.get("/admin/telemetry/events", adminMiddleware, async (c) => {
+  const limit = Number(c.req.query("limit") ?? 100);
+  const event_type = c.req.query("event_type");
+  let query = "SELECT * FROM telemetry_events";
+  const params: unknown[] = [];
+  if (event_type) { query += " WHERE event_type = ?"; params.push(event_type); }
+  query += " ORDER BY received_at DESC LIMIT ?";
+  params.push(limit);
+  const { results } = await c.env.DB.prepare(query).bind(...params).all();
+  return c.json({ events: results });
+});
+
+// テレメトリ集計（admin）
+app.get("/admin/telemetry/aggregate", adminMiddleware, async (c) => {
+  const days = Number(c.req.query("days") ?? 30);
+  const since = new Date(Date.now() - days * 86400_000).toISOString();
+
+  const { results: byType } = await c.env.DB.prepare(
+    "SELECT event_type, COUNT(*) as count, COUNT(DISTINCT license_key) as users FROM telemetry_events WHERE received_at >= ? GROUP BY event_type ORDER BY count DESC"
+  ).bind(since).all();
+
+  const { results: byDay } = await c.env.DB.prepare(
+    "SELECT substr(received_at, 1, 10) as date, COUNT(*) as count FROM telemetry_events WHERE received_at >= ? GROUP BY date ORDER BY date DESC LIMIT 30"
+  ).bind(since).all();
+
+  const { results: topUsers } = await c.env.DB.prepare(
+    "SELECT license_key, COUNT(*) as events, COUNT(DISTINCT event_type) as event_types FROM telemetry_events WHERE received_at >= ? GROUP BY license_key ORDER BY events DESC LIMIT 20"
+  ).bind(since).all();
+
+  return c.json({ days, by_type: byType, by_day: byDay, top_users: topUsers });
+});
+
 // ライセンス失効（admin）
 app.delete("/admin/licenses/:key", adminMiddleware, async (c) => {
   const key = c.req.param("key");

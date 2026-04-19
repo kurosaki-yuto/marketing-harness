@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../index";
+import { sendTelemetry } from "../lib/telemetry";
 
 export const campaignsRouter = new Hono<{
   Bindings: Env;
@@ -52,6 +53,7 @@ campaignsRouter.post("/", async (c) => {
       body.daily_budget ?? null
     )
     .run();
+  sendTelemetry(c.env, "campaign.create", { company_id: body.company_id, status: body.status ?? "ACTIVE", objective: body.objective });
   return c.json({ id }, 201);
 });
 

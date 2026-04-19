@@ -33,6 +33,7 @@ export type Env = {
   LICENSE_KEY: string;
   LICENSE_SERVER_URL: string;
   ALERT_WEBHOOK_URL?: string;
+  TELEMETRY_ENABLED?: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();

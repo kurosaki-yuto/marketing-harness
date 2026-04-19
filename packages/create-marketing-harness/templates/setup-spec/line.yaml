@@ -1,13 +1,45 @@
 id: line
 label: LINE Messaging API
+prerequisites:
+  - LINE ビジネスアカウント（または個人 LINE アカウント）でログインできること
+  - Messaging API チャンネルを作成する権限があること（既存チャンネルがある場合はそれを使用可）
 steps:
   - navigate: https://developers.line.biz/console/
-  - action: "既存のプロバイダーを選択するか、新規作成。その後「チャンネルを作成」→「Messaging API」を選択し必要事項を入力して作成"
-  - action: "作成したチャンネルの「Messaging API 設定」タブを開き、「チャンネルアクセストークン（長期）」の「発行」をクリック"
+  - action: "プロバイダー一覧から使用するプロバイダーを選択（存在しない場合は「作成」から新規作成）"
+  - action: "「チャンネルを作成」をクリック。チャンネルの種類は「Messaging API」を選択。チャンネル名・説明・カテゴリを入力して「作成」"
+  - action: "作成したチャンネルをクリックして設定画面を開く。「Messaging API 設定」タブをクリック"
+  - action: "「チャンネルアクセストークン（長期）」セクションの「発行」ボタンをクリック。発行されたトークンをコピー"
   - extract:
       field: channelAccessToken
       label: チャンネルアクセストークン（長期）
-  - action: "「基本設定」タブに切り替え"
+  - action: "画面上部の「基本設定」タブをクリック"
+  - action: "「チャンネルシークレット」欄の値をコピー（目のアイコンで表示、「コピー」ボタンを使用）"
   - extract:
       field: channelSecret
       label: チャンネルシークレット
+  - verify:
+      description: トークンが有効かどうか Bot Info API で確認
+      url_template: "GET https://api.line.me/v2/bot/info (Authorization: Bearer {{channelAccessToken}})"
+      expect: "displayName や pictureUrl を含む JSON が返れば成功"
+extracts:
+  - field: channelAccessToken
+    label: チャンネルアクセストークン（長期）
+    pattern: ".{50,}"
+    required: true
+  - field: channelSecret
+    label: チャンネルシークレット
+    pattern: "^[a-f0-9]{32}$"
+    required: true
+troubleshooting:
+  - symptom: "「発行」ボタンが表示されない"
+    cause: "「Messaging API 設定」タブではなく「基本設定」タブを開いている"
+    fix: "「Messaging API 設定」タブ（画面上部）に切り替える"
+  - symptom: "既存のトークンが突然使えなくなった"
+    cause: "トークンを再発行した（長期トークンは再発行すると旧トークンが即時無効化される）"
+    fix: "新しく発行したトークンに差し替える。チャンネルを削除しない限りチャンネルシークレットは変わらない"
+  - symptom: "Bot Info API で 401 エラー"
+    cause: "LINE Login チャンネルのトークンを使用している（Messaging API チャンネルと別物）"
+    fix: "developers.line.biz で Messaging API チャンネルを確認し、そのチャンネルのトークンを使用する"
+  - symptom: "push メッセージが届かない"
+    cause: "Webhook が ON になっていて Bot サーバーへの応答が必要な状態"
+    fix: "「Messaging API 設定」の「Webhook の利用」を OFF にする（push 配信のみなら不要）"

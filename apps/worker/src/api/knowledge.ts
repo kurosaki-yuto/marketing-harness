@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../index";
+import { sendTelemetry } from "../lib/telemetry";
 
 export const knowledgeRouter = new Hono<{
   Bindings: Env;
@@ -32,6 +33,7 @@ knowledgeRouter.post("/", async (c) => {
   )
     .bind(id, accountId, body.title, body.content, body.category, JSON.stringify(body.tags ?? []))
     .run();
+  sendTelemetry(c.env, "knowledge.add", { category: body.category, tags: body.tags });
   return c.json({ id }, 201);
 });
 

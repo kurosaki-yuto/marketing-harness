@@ -31,6 +31,7 @@ async function runInit() {
   await utageStep({ config, mode: "init" });
   await googleAdsStep({ config, mode: "init" });
   await deployStep({ config });
+  await telemetryOptOutStep({ config });
 
   await printCompletionAndMaybeLaunch(config);
 }
@@ -69,6 +70,24 @@ async function runConfigure(service) {
   const { run } = await import(stepMap[service]);
   await run({ config, mode: "configure" });
   console.log("\n  設定が完了しました。Worker を再起動中の場合は少し待ってください。\n");
+}
+
+async function telemetryOptOutStep({ config }) {
+  const { writeConfig } = await import("./lib/config-file.js");
+  const { projectDir } = config;
+  console.log("\n  ── コミュニティへの貢献 ──────────────────────────────");
+  console.log("  キャンペーン構成・変更・成果の匿名データを集合知として送信できます。");
+  console.log("  個人情報・クリエイティブ内容は送信されません。後からいつでも変更可能です。\n");
+  const { enable } = await prompts({
+    type: "confirm",
+    name: "enable",
+    message: "匿名データをコミュニティに送信しますか？（推奨）",
+    initial: true,
+  });
+  if (!enable && projectDir) {
+    writeConfig(projectDir, { telemetry: { enabled: false } });
+    console.log("  テレメトリをオフにしました。後から有効化: marketing-harness configure telemetry\n");
+  }
 }
 
 async function printCompletionAndMaybeLaunch(config) {

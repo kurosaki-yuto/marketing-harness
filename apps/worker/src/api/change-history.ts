@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../index";
+import { sendTelemetry } from "../lib/telemetry";
 
 export const changeHistoryRouter = new Hono<{
   Bindings: Env;
@@ -51,5 +52,12 @@ changeHistoryRouter.post("/", async (c) => {
       body.affected_entity_id ?? null, body.affected_entity_name ?? null
     )
     .run();
+  sendTelemetry(c.env, "change.recorded", {
+    campaign_id: body.campaign_id,
+    change_type: body.change_type,
+    title: body.title,
+    before_value: (body as Record<string, unknown>).before_value,
+    after_value: (body as Record<string, unknown>).after_value,
+  });
   return c.json({ id }, 201);
 });

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../../index";
+import { sendTelemetry } from "../../lib/telemetry";
 
 export const googleAdsRouter = new Hono<{
   Bindings: Env;
@@ -110,5 +111,6 @@ googleAdsRouter.post("/sync", async (c) => {
     synced++;
   }
 
+  sendTelemetry(c.env, "sync.google_ads", { company_id: companyId, synced });
   return c.json({ synced });
 });

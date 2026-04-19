@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>marketing-harness admin</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f5;color:#111;font-size:14px}
+  header{background:#111;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;font-weight:600;letter-spacing:.5px}
+  .token-bar{padding:12px 24px;background:#fff;border-bottom:1px solid #e0e0e0;display:flex;gap:8px}
+  .token-bar input{flex:1;border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:13px}
+  .token-bar button{background:#111;color:#fff;border:none;border-radius:6px;padding:6px 16px;cursor:pointer;font-size:13px}
+  nav{display:flex;gap:0;padding:0 24px;background:#fff;border-bottom:1px solid #e0e0e0}
+  nav button{padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;font-size:13px;color:#555}
+  nav button.active{border-bottom-color:#111;color:#111;font-weight:600}
+  main{padding:24px;max-width:1100px;margin:0 auto}
+  .card{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:20px;margin-bottom:16px}
+  .card h2{font-size:14px;font-weight:600;margin-bottom:12px;color:#555;text-transform:uppercase;letter-spacing:.5px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:6px 10px;border-bottom:2px solid #e0e0e0;color:#555;font-weight:600}
+  td{padding:6px 10px;border-bottom:1px solid #f0f0f0}
+  tr:last-child td{border-bottom:none}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .badge-green{background:#dcfce7;color:#166534}
+  .badge-gray{background:#f3f4f6;color:#374151}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+  .stat{background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:16px}
+  .stat .n{font-size:28px;font-weight:700;line-height:1}
+  .stat .l{font-size:12px;color:#666;margin-top:4px}
+  #error{background:#fee2e2;color:#991b1b;padding:10px 16px;border-radius:6px;margin-bottom:12px;display:none}
+  .days-select{margin-bottom:12px}
+  .days-select select{border:1px solid #ccc;border-radius:6px;padding:4px 8px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>marketing-harness admin</h1>
+</header>
+<div class="token-bar">
+  <input type="text" id="serverInput" placeholder="License Server URL（例: https://license.example.workers.dev）" style="flex:2" />
+  <input type="password" id="tokenInput" placeholder="Admin Token" />
+  <button onclick="load()">読み込む</button>
+</div>
+<nav>
+  <button class="active" onclick="showTab('telemetry', this)">テレメトリ</button>
+  <button onclick="showTab('licenses', this)">ライセンス</button>
+</nav>
+<main>
+  <div id="error"></div>
+
+  <!-- テレメトリタブ -->
+  <div id="tab-telemetry">
+    <div class="days-select">
+      <select id="daysSelect" onchange="loadTelemetry()">
+        <option value="7">直近7日</option>
+        <option value="30" selected>直近30日</option>
+        <option value="90">直近90日</option>
+      </select>
+    </div>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="card">
+      <h2>イベントタイプ別</h2>
+      <table id="typeTable"><thead><tr><th>イベント</th><th>件数</th><th>ユーザー数</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>日別アクティビティ</h2>
+      <table id="dayTable"><thead><tr><th>日付</th><th>件数</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="card">
+      <h2>アクティブユーザー TOP20</h2>
+      <table id="userTable"><thead><tr><th>ライセンスキー</th><th>イベント数</th><th>イベント種別数</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- ライセンスタブ -->
+  <div id="tab-licenses" style="display:none">
+    <div class="card">
+      <h2>ライセンス一覧</h2>
+      <table id="licenseTable">
+        <thead><tr><th>Key</th><th>メール</th><th>プラン</th><th>ステータス</th><th>有効期限</th><th>発行日</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+let token = localStorage.getItem('mh_admin_token') || '';
+let serverUrl = localStorage.getItem('mh_server_url') || '';
+document.getElementById('tokenInput').value = token;
+document.getElementById('serverInput').value = serverUrl;
+
+function showTab(name, btn) {
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = '';
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function err(msg) {
+  const el = document.getElementById('error');
+  el.textContent = msg; el.style.display = 'block';
+}
+function clearErr() { document.getElementById('error').style.display = 'none'; }
+
+async function apiFetch(path) {
+  const base = serverUrl.replace(/\/$/, '') || window.location.origin;
+  const res = await fetch(base + path, { headers: { 'X-Admin-Token': token } });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
+function tbody(id, rows) {
+  document.querySelector('#' + id + ' tbody').innerHTML = rows;
+}
+
+async function loadTelemetry() {
+  const days = document.getElementById('daysSelect').value;
+  try {
+    const d = await apiFetch('/admin/telemetry/aggregate?days=' + days);
+    const totalEvents = d.by_type.reduce((s, r) => s + r.count, 0);
+    const totalUsers = new Set(d.top_users.map(u => u.license_key)).size;
+    document.getElementById('statGrid').innerHTML = `
+      <div class="stat"><div class="n">${totalEvents}</div><div class="l">総イベント数</div></div>
+      <div class="stat"><div class="n">${totalUsers}</div><div class="l">アクティブユーザー</div></div>
+      <div class="stat"><div class="n">${d.by_type.length}</div><div class="l">イベント種別</div></div>
+    `;
+    tbody('typeTable', d.by_type.map(r =>
+      `<tr><td><code>${r.event_type}</code></td><td>${r.count}</td><td>${r.users}</td></tr>`
+    ).join(''));
+    tbody('dayTable', d.by_day.map(r =>
+      `<tr><td>${r.date}</td><td>${r.count}</td></tr>`
+    ).join(''));
+    tbody('userTable', d.top_users.map(r =>
+      `<tr><td><code>${r.license_key.slice(0,20)}…</code></td><td>${r.events}</td><td>${r.event_types}</td></tr>`
+    ).join(''));
+    clearErr();
+  } catch(e) { err('テレメトリ取得失敗: ' + e.message); }
+}
+
+async function loadLicenses() {
+  try {
+    const d = await apiFetch('/admin/licenses');
+    tbody('licenseTable', d.licenses.map(l => `
+      <tr>
+        <td><code>${l.key.slice(0,22)}…</code></td>
+        <td>${l.email}</td>
+        <td>${l.plan}</td>
+        <td><span class="badge ${l.status === 'active' ? 'badge-green' : 'badge-gray'}">${l.status}</span></td>
+        <td>${l.expires_at ?? '無期限'}</td>
+        <td>${l.created_at.slice(0,10)}</td>
+      </tr>`).join(''));
+    clearErr();
+  } catch(e) { err('ライセンス取得失敗: ' + e.message); }
+}
+
+function load() {
+  serverUrl = document.getElementById('serverInput').value.trim();
+  token = document.getElementById('tokenInput').value.trim();
+  localStorage.setItem('mh_server_url', serverUrl);
+  localStorage.setItem('mh_admin_token', token);
+  loadTelemetry();
+  loadLicenses();
+}
+
+if (token) load();
+</script>
+</body>
+</html>

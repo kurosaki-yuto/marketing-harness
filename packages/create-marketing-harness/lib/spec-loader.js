@@ -125,13 +125,22 @@ export function loadSpec(specId) {
   return parseYaml(raw);
 }
 
-export function buildPrompt(spec) {
-  const extractFields = spec.steps.filter((s) => s.extract).map((s) => s.extract);
+export function getExtracts(spec) {
+  if (spec.extracts && spec.extracts.length > 0) return spec.extracts;
+  return spec.steps.filter((s) => s.extract).map((s) => s.extract);
+}
 
+export function buildPrompt(spec) {
   const lines = [
     `あなたはブラウザを操作して「${spec.label}」の認証情報を取得します。`,
-    `以下の手順を順番に実行してください:\n`,
   ];
+
+  if (spec.prerequisites && spec.prerequisites.length > 0) {
+    lines.push("\n## 事前確認（作業前に確認してください）");
+    for (const pre of spec.prerequisites) lines.push(`- ${pre}`);
+  }
+
+  lines.push("\n## 手順（順番に実行してください）\n");
 
   let num = 1;
   for (const step of spec.steps) {
@@ -141,21 +150,36 @@ export function buildPrompt(spec) {
       lines.push(`${num}. ${step.action}`);
     } else if (step.extract) {
       lines.push(`${num}. 「${step.extract.label}」を画面から見つけてコピーしてください`);
+    } else if (step.verify) {
+      lines.push(`${num}. [検証] ${step.verify.description}`);
+      if (step.verify.url_template) lines.push(`   確認方法: ${step.verify.url_template}`);
+      if (step.verify.expect) lines.push(`   期待値: ${step.verify.expect}`);
     }
     num++;
   }
 
+  const extracts = getExtracts(spec);
   const outputObj = {};
-  for (const f of extractFields) outputObj[f.field] = `（${f.label}をここに）`;
+  for (const f of extracts) outputObj[f.field] = `（${f.label}をここに）`;
 
-  lines.push(`\n全ての手順が完了したら、取得した値を以下の JSON 形式のみで出力してください（説明文は不要）:`);
+  lines.push("\n## 出力形式");
+  lines.push("全ての手順が完了したら、取得した値を以下の JSON 形式のみで出力してください（説明文は不要）:");
   lines.push("```json");
   lines.push(JSON.stringify(outputObj, null, 2));
   lines.push("```");
+
+  if (spec.troubleshooting && spec.troubleshooting.length > 0) {
+    lines.push("\n## もし詰まったら");
+    for (const t of spec.troubleshooting) {
+      lines.push(`\n**症状**: ${t.symptom}`);
+      lines.push(`**原因**: ${t.cause}`);
+      lines.push(`**対処**: ${t.fix}`);
+    }
+  }
 
   return lines.join("\n");
 }
 
 export function extractFieldNames(spec) {
-  return spec.steps.filter((s) => s.extract).map((s) => s.extract.field);
+  return getExtracts(spec).map((f) => f.field);
 }
