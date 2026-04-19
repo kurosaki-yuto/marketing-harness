@@ -4,6 +4,7 @@ import { printStepHeader, printSuccess } from "../lib/prompts.js";
 import { d1Create, d1Execute, deploy, putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 import { MSG } from "../lib/messages.js";
+import { LATEST_SCHEMA_VERSION } from "../lib/version.js";
 
 export async function run({ config }) {
   printStepHeader(4, MSG.DEPLOY_STEP, "広告データの保存場所を作成 → 接続キーを設定 → AI を起動");
@@ -69,7 +70,7 @@ export async function run({ config }) {
 
   const now = new Date().toISOString();
   writeConfig(projectDir, {
-    schemaVersion: 1,
+    schemaVersion: LATEST_SCHEMA_VERSION,
     projectName: config.projectName,
     workerUrl,
     apiKey: config.apiKey,
@@ -79,10 +80,14 @@ export async function run({ config }) {
       cloudflare: { enabled: true, configuredAt: now },
       meta:       { enabled: !!(integ.meta?.accessToken ?? config.meta?.token),              configuredAt: (integ.meta?.accessToken ?? config.meta?.token) ? now : undefined },
       line:       { enabled: !!(integ.line?.channelAccessToken ?? config.line?.channelAccessToken), configuredAt: (integ.line?.channelAccessToken ?? config.line?.channelAccessToken) ? now : undefined },
-      utage:      { enabled: !!(integ.utage?.apiKey ?? config.utage?.apiKey),                configuredAt: (integ.utage?.apiKey ?? config.utage?.apiKey) ? now : undefined },
+      utage:      { enabled: !!(integ.utage?.apiKey ?? config.utage?.apiKey), configuredAt: (integ.utage?.apiKey ?? config.utage?.apiKey) ? now : undefined },
       googleAds:  { enabled: !!(integ.googleAds?.refreshToken ?? config.googleAds?.refreshToken), configuredAt: (integ.googleAds?.refreshToken ?? config.googleAds?.refreshToken) ? now : undefined },
     },
     lastLaunchAt: null,
+    // self-update 時に MCP 再登録できるよう apiKey をローカルに保存
+    utage: (integ.utage?.apiKey ?? config.utage?.apiKey)
+      ? { apiKey: integ.utage?.apiKey ?? config.utage?.apiKey }
+      : undefined,
   });
 
   return { skipped: false };

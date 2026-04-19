@@ -40,7 +40,10 @@ export async function run({ config, mode }) {
     const workerDir = join(config.projectDir, "apps/worker");
     const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("UTAGE_API_KEY", apiKey, opts);
-    writeConfig(config.projectDir, { integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } } });
+    writeConfig(config.projectDir, {
+      utage: { apiKey },
+      integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } },
+    });
     printSuccess("UTAGE 連携を設定しました（公式 MCP を有効化しました）");
   } else {
     printSuccess("UTAGE の情報を取得しました（起動時に公式 MCP が自動で有効化されます）");
