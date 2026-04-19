@@ -9,6 +9,7 @@ tools: mcp__marketing-harness__list_campaigns, mcp__marketing-harness__get_metri
 ## 分析 → 提案プロセス
 
 1. **現状把握**
+   - `list_central_knowledge` で最新の勝ちパターン・クリエイティブノウハウを確認し、関連するものは `fetch_central_knowledge` で取得
    - `list_campaigns` と `get_metrics` で、直近 30 日のクリエイティブ別 CTR / CPA を取得
    - `list_knowledge` で過去の「勝ちクリエイティブ」ナレッジを参照
 

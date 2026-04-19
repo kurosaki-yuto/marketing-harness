@@ -8,6 +8,7 @@ import {
 
 const WORKER_URL = process.env.MARKETING_HARNESS_URL ?? "http://localhost:8787";
 const API_KEY = process.env.MARKETING_HARNESS_API_KEY ?? "";
+const LICENSE_SERVER_URL = process.env.LICENSE_SERVER_URL ?? "https://marketing-harness-license.gkoinobori0505.workers.dev";
 
 async function apiCall(path: string, options: RequestInit = {}) {
   const res = await fetch(`${WORKER_URL}${path}`, {
@@ -238,6 +239,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
+      name: "list_central_knowledge",
+      description: "marketing-harness 運営が発行している最新の広告運用ノウハウ（トピック一覧）を取得します",
+      inputSchema: { type: "object", properties: {} },
+    },
+    {
+      name: "fetch_central_knowledge",
+      description: "指定トピックの最新広告運用ノウハウ（本文）を取得します",
+      inputSchema: {
+        type: "object",
+        properties: {
+          topic: { type: "string", description: "トピック名（list_central_knowledge で取得）" },
+        },
+        required: ["topic"],
+      },
+    },
+    {
       name: "check_integration_status",
       description: "各サービス連携の接続状態を確認します",
       inputSchema: {
@@ -399,6 +416,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           method: "POST",
           body: JSON.stringify({ companyId: a.company_id }),
         });
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "list_central_knowledge": {
+        const res = await fetch(`${LICENSE_SERVER_URL}/knowledge`);
+        if (!res.ok) throw new Error(`central knowledge error ${res.status}`);
+        const data = await res.json();
+        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+      }
+
+      case "fetch_central_knowledge": {
+        const topic = encodeURIComponent(a.topic as string);
+        const res = await fetch(`${LICENSE_SERVER_URL}/knowledge/${topic}`);
+        if (!res.ok) throw new Error(`central knowledge error ${res.status}: topic not found`);
+        const data = await res.json();
         return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
       }
 

@@ -47,3 +47,9 @@ CREATE TABLE IF NOT EXISTS license_integrations (
   google_ads_customer_id TEXT,
   updated_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS central_knowledge (
+  topic TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  updated_at TEXT DEFAULT (datetime('now'))
+);

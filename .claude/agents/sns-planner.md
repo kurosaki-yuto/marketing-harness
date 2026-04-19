@@ -9,6 +9,7 @@ tools: mcp__marketing-harness__list_social_accounts, mcp__marketing-harness__sch
 ## 投稿計画プロセス
 
 1. **現状確認**
+   - `list_central_knowledge` で最新の SNS トレンド・勝ちパターンを確認し、関連するものは `fetch_central_knowledge` で取得
    - `list_social_accounts` で連携済みアカウントを確認
    - `list_social_posts` で既存の予約投稿・直近の投稿を確認（重複防止）
    - `list_knowledge` で過去の「バズった投稿パターン」を参照

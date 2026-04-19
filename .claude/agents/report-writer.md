@@ -9,6 +9,7 @@ tools: mcp__marketing-harness__create_report, mcp__marketing-harness__get_metric
 ## レポート作成プロセス
 
 1. **データ収集**
+   - `list_central_knowledge` で最新の業界トレンド・KPI 目安を確認し、関連するものは `fetch_central_knowledge` で取得
    - `list_companies` で対象企業を確認（未指定の場合はユーザーに確認）
    - `create_report` で指定月のレポートデータを取得
    - `get_metrics` で当月・前月・前年同月のデータを取得（3 期間比較）

@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__marketing-harness__list_campaigns",
+      "mcp__marketing-harness__get_metrics",
+      "mcp__marketing-harness__get_report_data",
+      "mcp__marketing-harness__save_report",
+      "mcp__marketing-harness__set_kpi_target",
+      "mcp__marketing-harness__update_knowledge",
+      "mcp__marketing-harness__list_companies",
+      "mcp__marketing-harness__list_knowledge",
+      "mcp__marketing-harness__list_social_accounts",
+      "mcp__marketing-harness__list_social_posts",
+      "mcp__marketing-harness__schedule_social_post",
+      "mcp__marketing-harness__publish_social_post_now",
+      "mcp__marketing-harness__delete_social_post",
+      "mcp__marketing-harness__send_line_message",
+      "mcp__marketing-harness__list_utage_subscribers",
+      "mcp__marketing-harness__sync_google_ads_campaigns",
+      "mcp__marketing-harness__check_integration_status",
+      "mcp__marketing-harness__connect_social_account",
+      "mcp__marketing-harness__list_central_knowledge",
+      "mcp__marketing-harness__fetch_central_knowledge"
+    ]
+  }
+}

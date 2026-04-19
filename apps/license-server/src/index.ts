@@ -268,6 +268,42 @@ app.put("/admin/licenses/:key/integrations", adminMiddleware, async (c) => {
   return c.json({ ok: true });
 });
 
+// 中央ナレッジ一覧（public）
+app.get("/knowledge", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    "SELECT topic, updated_at FROM central_knowledge ORDER BY updated_at DESC"
+  ).all<{ topic: string; updated_at: string }>();
+  return c.json({ topics: results });
+});
+
+// 中央ナレッジ取得（public）
+app.get("/knowledge/:topic", async (c) => {
+  const topic = c.req.param("topic");
+  const row = await c.env.DB.prepare(
+    "SELECT topic, content, updated_at FROM central_knowledge WHERE topic = ?"
+  ).bind(topic).first<{ topic: string; content: string; updated_at: string }>();
+  if (!row) return c.json({ error: "not found" }, 404);
+  return c.json(row);
+});
+
+// 中央ナレッジ登録・更新（admin）
+app.put("/admin/knowledge/:topic", adminMiddleware, async (c) => {
+  const topic = c.req.param("topic");
+  const body = await c.req.json<{ content?: string }>();
+  if (!body.content) return c.json({ error: "content is required" }, 400);
+  await c.env.DB.prepare(
+    "INSERT INTO central_knowledge (topic, content) VALUES (?, ?) ON CONFLICT(topic) DO UPDATE SET content = excluded.content, updated_at = datetime('now')"
+  ).bind(topic, body.content).run();
+  return c.json({ ok: true, topic });
+});
+
+// 中央ナレッジ削除（admin）
+app.delete("/admin/knowledge/:topic", adminMiddleware, async (c) => {
+  const topic = c.req.param("topic");
+  await c.env.DB.prepare("DELETE FROM central_knowledge WHERE topic = ?").bind(topic).run();
+  return c.json({ ok: true });
+});
+
 // テレメトリ受信（public、license_key で認証）
 app.post("/telemetry/events", async (c) => {
   const body = await c.req.json<{

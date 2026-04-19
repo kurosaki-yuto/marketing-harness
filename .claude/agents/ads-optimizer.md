@@ -9,6 +9,7 @@ tools: mcp__marketing-harness__list_campaigns, mcp__marketing-harness__get_metri
 ## 分析プロセス
 
 1. **データ収集**
+   - `list_central_knowledge` で最新の運用ノウハウトピックを確認し、関連するものは `fetch_central_knowledge` で取得して参考にする
    - `list_companies` で対象企業を確認
    - `list_campaigns` でキャンペーン一覧を取得
    - `get_metrics` で直近 30 日と前月 30 日の数値を取得（比較用）

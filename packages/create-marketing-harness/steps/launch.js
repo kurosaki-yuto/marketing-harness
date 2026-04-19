@@ -60,7 +60,12 @@ export async function run({ projectDir, raw = false }) {
     process.exit(0);
   }
 
-  const promptArg = choice.type === "slash" ? [choice.slug] : [];
+  let promptArg = [];
+  if (choice.type === "slash") {
+    promptArg = [choice.slug];
+  } else if (choice.type === "chat") {
+    promptArg = ["こんにちは！今日の広告運用で気になっていることを教えてください。（例：CPA が高い、レポートを作りたい、新しいクリエイティブが欲しい等）"];
+  }
   await spawnClaude([...sysArgs, ...promptArg], { cwd: projectDir, env });
 }
 

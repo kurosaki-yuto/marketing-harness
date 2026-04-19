@@ -39,7 +39,7 @@ export async function renderMainMenu(cfg, commands) {
   const choices = [
     ...commandChoices,
     { title: "──────────────────────", value: null, disabled: true },
-    { title: "Claude に自由に話しかける", value: { type: "chat" } },
+    { title: "AI に相談する（ヒアリングから）", value: { type: "chat" } },
     { title: "連携を追加・変更する", value: { type: "configure" } },
     { title: "終了", value: { type: "exit" } },
   ];
