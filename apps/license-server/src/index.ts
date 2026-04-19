@@ -67,6 +67,32 @@ app.post("/verify", async (c) => {
   return c.json(response);
 });
 
+// コミュニティ登録（public）- メールアドレスだけで community キーを自動発行
+app.post("/register", async (c) => {
+  const body = await c.req.json<{ email?: string }>().catch(() => ({ email: undefined }));
+  const email = (body.email ?? "").trim().toLowerCase();
+
+  if (!email || !email.includes("@")) {
+    return c.json({ error: "valid email is required" }, 400);
+  }
+
+  // 既存の active community キーがあれば再利用
+  const existing = await c.env.DB.prepare(
+    "SELECT key FROM licenses WHERE email = ? AND plan = 'community' AND status = 'active' ORDER BY created_at DESC LIMIT 1"
+  ).bind(email).first<{ key: string }>();
+
+  if (existing) {
+    return c.json({ key: existing.key, email, plan: "community", created: false });
+  }
+
+  const key = `mh_${crypto.randomUUID().replace(/-/g, "")}`;
+  await c.env.DB.prepare(
+    "INSERT INTO licenses (key, email, plan, expires_at, note) VALUES (?, ?, 'community', NULL, 'self-registered')"
+  ).bind(key, email).run();
+
+  return c.json({ key, email, plan: "community", created: true }, 201);
+});
+
 // --- admin ミドルウェア ---
 const adminMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const token = c.req.header("X-Admin-Token");

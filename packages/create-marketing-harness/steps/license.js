@@ -5,35 +5,31 @@ const LICENSE_SERVER_URL =
   "https://marketing-harness-license.gkoinobori0505.workers.dev";
 
 export async function run({ config }) {
-  printStepHeader(1, "ライセンスキー確認", "コミュニティライセンスキーを入力してください");
+  printStepHeader(1, "コミュニティ登録", "メールアドレスを入力するだけで無料ライセンスを発行します");
 
-  const licenseKey = await askText("コミュニティライセンスキー (mh_...):", {
-    validate: (v) => v.startsWith("mh_") ? true : "mh_ から始まるキーを入力してください",
+  const email = await askText("メールアドレス:", {
+    validate: (v) => v.includes("@") ? true : "有効なメールアドレスを入力してください",
   });
 
-  console.log("\n  ライセンスを確認中...");
-  let verifyResult;
+  console.log("\n  ライセンスを発行中...");
+  let result;
   try {
-    const res = await fetch(`${LICENSE_SERVER_URL}/verify`, {
+    const res = await fetch(`${LICENSE_SERVER_URL}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ license_key: licenseKey, instance_id: "cli-setup" }),
+      body: JSON.stringify({ email }),
     });
-    verifyResult = await res.json();
-  } catch {
-    console.error("\n  ライセンスサーバーに接続できませんでした。ネットワークを確認してください。");
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error ?? res.status);
+  } catch (err) {
+    console.error(`\n  ライセンスの発行に失敗しました: ${err.message}`);
+    console.error("  ネットワークを確認してもう一度お試しください。");
     process.exit(1);
   }
 
-  if (!verifyResult.valid) {
-    console.error(`\n  ライセンスが無効です: ${verifyResult.reason}`);
-    console.error("  コミュニティへの参加・更新については運営にお問い合わせください。");
-    process.exit(1);
-  }
+  printSuccess(`ライセンス発行 OK (${result.created ? "新規" : "既存"}: ${result.key})`);
 
-  printSuccess(`ライセンス確認 OK (plan: ${verifyResult.plan})`);
-
-  config.licenseKey = licenseKey;
+  config.licenseKey = result.key;
   config.licenseServerUrl = LICENSE_SERVER_URL;
   return { skipped: false };
 }
