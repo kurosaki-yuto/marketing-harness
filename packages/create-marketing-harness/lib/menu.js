@@ -11,10 +11,13 @@ const SERVICES = [
 
 export function printMenuBanner(cfg) {
   const integrations = cfg.integrations ?? {};
-  const enabled = Object.entries(integrations)
-    .filter(([, v]) => v?.enabled)
-    .map(([k]) => k)
-    .join(", ") || "なし";
+
+  const statusParts = [
+    ["meta",      "Meta"],
+    ["line",      "LINE"],
+    ["utage",     "UTAGE"],
+    ["googleAds", "Google"],
+  ].map(([key, label]) => `${label}=${integrations[key]?.enabled ? "接続済" : "未"}`);
 
   const lastLaunch = cfg.lastLaunchAt
     ? new Date(cfg.lastLaunchAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })
@@ -24,8 +27,8 @@ export function printMenuBanner(cfg) {
   console.log("║  marketing-harness                            ║");
   console.log("║  広告運用 AI エージェント                     ║");
   console.log("╚══════════════════════════════════════════════╝");
-  console.log(`\n  ${MSG.MENU_WORKER}:    ${cfg.workerUrl || "(ローカル)"}`);
-  console.log(`  ${MSG.MENU_INTEGRATIONS}:  ${enabled}`);
+  console.log(`\n  状態:      ${statusParts.join(" / ")}`);
+  console.log(`  ${MSG.MENU_WORKER}:    ${cfg.workerUrl || "(ローカル)"}`);
   console.log(`  ${MSG.MENU_LAST_LAUNCH}:  ${lastLaunch}\n`);
 }
 

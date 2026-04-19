@@ -5,7 +5,18 @@ import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 import { runWithFallback } from "../lib/connector.js";
 
-export async function run({ config, mode }) {
+export async function run({ config, mode, data }) {
+  if (mode === "apply") {
+    const { token, accountId } = data ?? {};
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: {} };
+    await putSecret("META_ACCESS_TOKEN", token, opts);
+    await putSecret("META_AD_ACCOUNT_ID", accountId, opts);
+    writeConfig(config.projectDir, { integrations: { meta: { enabled: true, configuredAt: new Date().toISOString() } } });
+    printSuccess("Meta 広告の接続が完了しました");
+    return { skipped: false };
+  }
+
   printStepHeader(
     mode === "configure" ? "Meta" : 4,
     "Meta 広告連携（任意）",

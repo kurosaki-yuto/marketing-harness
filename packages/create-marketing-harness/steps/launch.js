@@ -6,6 +6,8 @@ import { printMenuBanner, printAlertBanner, renderMainMenu, renderConfigureMenu 
 import { MARKETING_HARNESS_SYSTEM_PROMPT } from "../lib/system-prompt.js";
 import { collectAlerts } from "../lib/alerts.js";
 import { selfUpdate } from "../lib/self-update.js";
+import { buildSetupPrompt } from "../lib/setup-prompt.js";
+import { printSetupSummary } from "../lib/setup-summary.js";
 
 export async function run({ projectDir, raw = false }) {
   await selfUpdate(projectDir);
@@ -53,16 +55,10 @@ export async function run({ projectDir, raw = false }) {
   if (choice.type === "configure") {
     const service = await renderConfigureMenu();
     if (!service) process.exit(0);
-    const stepMap = {
-      cloudflare:   "../steps/cloudflare.js",
-      meta:         "../steps/meta.js",
-      line:         "../steps/line.js",
-      utage:        "../steps/utage.js",
-      "google-ads": "../steps/google-ads.js",
-    };
-    const { run: configureStep } = await import(stepMap[service]);
-    await configureStep({ config: { projectDir }, mode: "configure" });
+    const prompt = buildSetupPrompt(service, projectDir);
+    await spawnClaude([...sysArgs, prompt], { cwd: projectDir, env });
     await touchLastLaunch(projectDir);
+    printSetupSummary(projectDir);
     process.exit(0);
   }
 

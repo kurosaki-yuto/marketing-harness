@@ -5,7 +5,18 @@ import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 import { runWithFallback } from "../lib/connector.js";
 
-export async function run({ config, mode }) {
+export async function run({ config, mode, data }) {
+  if (mode === "apply") {
+    const { channelAccessToken, channelSecret } = data ?? {};
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: {} };
+    await putSecret("LINE_CHANNEL_ACCESS_TOKEN", channelAccessToken, opts);
+    await putSecret("LINE_CHANNEL_SECRET", channelSecret, opts);
+    writeConfig(config.projectDir, { integrations: { line: { enabled: true, configuredAt: new Date().toISOString() } } });
+    printSuccess("LINE の接続が完了しました");
+    return { skipped: false };
+  }
+
   printStepHeader(
     mode === "configure" ? "LINE" : 5,
     "LINE Messaging API 連携（任意）",

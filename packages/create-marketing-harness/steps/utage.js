@@ -6,7 +6,25 @@ import { writeConfig } from "../lib/config-file.js";
 import { runWithFallback } from "../lib/connector.js";
 import { registerRemoteMcpServer } from "../lib/mcp-settings.js";
 
-export async function run({ config, mode }) {
+export async function run({ config, mode, data }) {
+  if (mode === "apply") {
+    const { apiKey } = data ?? {};
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: {} };
+    await putSecret("UTAGE_API_KEY", apiKey, opts);
+    writeConfig(config.projectDir, {
+      utage: { apiKey },
+      integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } },
+    });
+    registerRemoteMcpServer(config.projectDir, {
+      name: "utage",
+      url: "https://api.utage-system.com/mcp",
+      apiKey,
+    });
+    printSuccess("UTAGE の接続が完了しました");
+    return { skipped: false };
+  }
+
   printStepHeader(
     mode === "configure" ? "UTAGE" : 6,
     "UTAGE（宴）連携（任意）",

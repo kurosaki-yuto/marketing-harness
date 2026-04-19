@@ -62,6 +62,39 @@ async function runResume(service) {
   console.log("\n  設定が完了しました。\n");
 }
 
+async function runApply(service, jsonStr) {
+  const validServices = ["meta", "line", "utage", "google-ads"];
+  if (!validServices.includes(service)) {
+    console.error(`\n  未知のサービス: ${service}`);
+    console.error(`  使用できるサービス: ${validServices.join(", ")}`);
+    process.exit(1);
+  }
+
+  const { state, projectDir } = detectProject(process.cwd());
+  if (state === "outside") {
+    console.error("\n  プロジェクトルートで実行してください");
+    process.exit(1);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(jsonStr);
+  } catch {
+    console.error("\n  JSON の形式が正しくありません");
+    process.exit(1);
+  }
+
+  const stepMap = {
+    meta:         "./steps/meta.js",
+    line:         "./steps/line.js",
+    utage:        "./steps/utage.js",
+    "google-ads": "./steps/google-ads.js",
+  };
+
+  const { run } = await import(stepMap[service]);
+  await run({ config: { projectDir }, mode: "apply", data });
+}
+
 async function runConfigure(service) {
   const validServices = ["cloudflare", "meta", "line", "utage", "google-ads"];
   if (!validServices.includes(service)) {
@@ -151,7 +184,7 @@ if (raw) argv.splice(rawIdx, 1);
 const [sub, svc] = argv;
 const binName = basename(process.argv[1] ?? "");
 
-const SUBCOMMANDS = new Set(["configure", "resume", "launch", "setup", "init", "help", "--help", "-h", "--version", "-v"]);
+const SUBCOMMANDS = new Set(["configure", "resume", "apply", "launch", "setup", "init", "help", "--help", "-h", "--version", "-v"]);
 
 async function main() {
   if (sub && SUBCOMMANDS.has(sub)) {
@@ -172,6 +205,16 @@ async function main() {
         }
         await runResume(svc);
         break;
+      case "apply": {
+        const jsonStr = argv[2];
+        if (!svc || !jsonStr) {
+          console.error("\n  使い方: marketing-harness apply <service> '<JSON>'");
+          console.error("  サービス: meta / line / utage / google-ads\n");
+          process.exit(1);
+        }
+        await runApply(svc, jsonStr);
+        break;
+      }
       case "setup":
       case "init":
         await runInit();
