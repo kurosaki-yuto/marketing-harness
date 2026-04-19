@@ -15,10 +15,6 @@ async function runInit() {
   const { run: licenseStep }    = await import("./steps/license.js");
   const { run: projectStep }    = await import("./steps/project.js");
   const { run: cloudflareStep } = await import("./steps/cloudflare.js");
-  const { run: metaStep }       = await import("./steps/meta.js");
-  const { run: lineStep }       = await import("./steps/line.js");
-  const { run: utageStep }      = await import("./steps/utage.js");
-  const { run: googleAdsStep }  = await import("./steps/google-ads.js");
   const { run: deployStep }     = await import("./steps/deploy.js");
 
   const config = {};
@@ -26,10 +22,6 @@ async function runInit() {
   await licenseStep({ config });
   await projectStep({ config });
   await cloudflareStep({ config, mode: "init" });
-  await metaStep({ config, mode: "init" });
-  await lineStep({ config, mode: "init" });
-  await utageStep({ config, mode: "init" });
-  await googleAdsStep({ config, mode: "init" });
   await deployStep({ config });
   await telemetryOptOutStep({ config });
 
@@ -76,7 +68,7 @@ async function telemetryOptOutStep({ config }) {
   const { writeConfig } = await import("./lib/config-file.js");
   const { printStepHeader } = await import("./lib/prompts.js");
   const { projectDir } = config;
-  printStepHeader(9, "コミュニティへの貢献（任意）", "匿名の利用データで AI の提案精度が向上します");
+  printStepHeader(5, "コミュニティへの貢献（任意）", "匿名の利用データで AI の提案精度が向上します");
   console.log("  キャンペーン構成・変更・成果の匿名データを集合知として送信できます。");
   console.log("  個人情報・クリエイティブ内容は送信されません。後からいつでも変更可能です。\n");
   const { enable } = await prompts({

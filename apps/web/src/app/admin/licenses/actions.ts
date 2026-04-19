@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { issueLicense, revokeLicense } from "@/lib/admin/license-client";
+import { issueLicense, revokeLicense, putIntegrations, type IntegrationsData } from "@/lib/admin/license-client";
 
 export type IssueState = { ok: boolean; key?: string; error?: string } | null;
 
@@ -22,4 +22,18 @@ export async function issueLicenseAction(
 export async function revokeLicenseAction(key: string): Promise<void> {
   await revokeLicense(key);
   revalidatePath("/admin/licenses");
+}
+
+export type IntegrationState = { ok: boolean; error?: string } | null;
+
+export async function setIntegrationsAction(
+  key: string,
+  data: IntegrationsData
+): Promise<IntegrationState> {
+  try {
+    await putIntegrations(key, data);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
 }

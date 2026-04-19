@@ -5,6 +5,7 @@ import type { MiddlewareHandler } from "hono";
 type Env = {
   DB: D1Database;
   ADMIN_TOKEN: string;
+  COMMUNITY_JOIN_URL: string;
 };
 
 type License = {
@@ -16,6 +17,19 @@ type License = {
   created_at: string;
   revoked_at: string | null;
   note: string | null;
+};
+
+type Integrations = {
+  meta?: { accessToken?: string; adAccountId?: string };
+  line?: { channelAccessToken?: string; channelSecret?: string };
+  utage?: { apiKey?: string };
+  googleAds?: {
+    developerToken?: string;
+    clientId?: string;
+    clientSecret?: string;
+    refreshToken?: string;
+    customerId?: string;
+  };
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -48,7 +62,6 @@ app.post("/verify", async (c) => {
     result = "expired";
     response = { valid: false, reason: "expired" };
   } else if (license.expires_at && new Date(license.expires_at) < new Date()) {
-    // expires_at が過去 → DB を expired に更新
     await c.env.DB.prepare(
       "UPDATE licenses SET status = 'expired' WHERE key = ?"
     ).bind(license_key).run();
@@ -59,7 +72,6 @@ app.post("/verify", async (c) => {
     response = { valid: true, plan: license.plan, expires_at: license.expires_at };
   }
 
-  // 監査ログ
   await c.env.DB.prepare(
     "INSERT INTO license_checks (license_key, instance_id, result) VALUES (?, ?, ?)"
   ).bind(license_key, instance_id ?? null, result).run();
@@ -67,7 +79,9 @@ app.post("/verify", async (c) => {
   return c.json(response);
 });
 
-// コミュニティ登録（public）- メールアドレスだけで community キーを自動発行
+// コミュニティ参加確認 + integrations 返却（public）
+// 登録済みメール → license_key + integrations を返す
+// 未登録メール → 403 + community_join_url
 app.post("/register", async (c) => {
   const body = await c.req.json<{ email?: string }>().catch(() => ({ email: undefined }));
   const email = (body.email ?? "").trim().toLowerCase();
@@ -76,21 +90,55 @@ app.post("/register", async (c) => {
     return c.json({ error: "valid email is required" }, 400);
   }
 
-  // 既存の active community キーがあれば再利用
-  const existing = await c.env.DB.prepare(
-    "SELECT key FROM licenses WHERE email = ? AND plan = 'community' AND status = 'active' ORDER BY created_at DESC LIMIT 1"
-  ).bind(email).first<{ key: string }>();
+  const license = await c.env.DB.prepare(
+    "SELECT * FROM licenses WHERE email = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1"
+  ).bind(email).first<License>();
 
-  if (existing) {
-    return c.json({ key: existing.key, email, plan: "community", created: false });
+  if (!license) {
+    return c.json({
+      error: "not_in_community",
+      community_join_url: c.env.COMMUNITY_JOIN_URL,
+    }, 403);
   }
 
-  const key = `mh_${crypto.randomUUID().replace(/-/g, "")}`;
-  await c.env.DB.prepare(
-    "INSERT INTO licenses (key, email, plan, expires_at, note) VALUES (?, ?, 'community', NULL, 'self-registered')"
-  ).bind(key, email).run();
+  const integ = await c.env.DB.prepare(
+    "SELECT * FROM license_integrations WHERE license_key = ?"
+  ).bind(license.key).first<Record<string, string | null>>();
 
-  return c.json({ key, email, plan: "community", created: true }, 201);
+  const integrations: Integrations = {};
+  if (integ) {
+    if (integ.meta_access_token || integ.meta_ad_account_id) {
+      integrations.meta = {
+        accessToken: integ.meta_access_token ?? undefined,
+        adAccountId: integ.meta_ad_account_id ?? undefined,
+      };
+    }
+    if (integ.line_channel_access_token || integ.line_channel_secret) {
+      integrations.line = {
+        channelAccessToken: integ.line_channel_access_token ?? undefined,
+        channelSecret: integ.line_channel_secret ?? undefined,
+      };
+    }
+    if (integ.utage_api_key) {
+      integrations.utage = { apiKey: integ.utage_api_key };
+    }
+    if (integ.google_ads_developer_token || integ.google_ads_refresh_token) {
+      integrations.googleAds = {
+        developerToken: integ.google_ads_developer_token ?? undefined,
+        clientId: integ.google_ads_client_id ?? undefined,
+        clientSecret: integ.google_ads_client_secret ?? undefined,
+        refreshToken: integ.google_ads_refresh_token ?? undefined,
+        customerId: integ.google_ads_customer_id ?? undefined,
+      };
+    }
+  }
+
+  return c.json({
+    key: license.key,
+    email: license.email,
+    plan: license.plan,
+    integrations,
+  });
 });
 
 // --- admin ミドルウェア ---
@@ -131,6 +179,93 @@ app.post("/admin/licenses", adminMiddleware, async (c) => {
   ).bind(key, body.email, plan, body.expires_at ?? null, body.note ?? null).run();
 
   return c.json({ key, email: body.email, plan, expires_at: body.expires_at ?? null }, 201);
+});
+
+// ライセンス失効（admin）
+app.delete("/admin/licenses/:key", adminMiddleware, async (c) => {
+  const key = c.req.param("key");
+
+  const license = await c.env.DB.prepare(
+    "SELECT key, status FROM licenses WHERE key = ?"
+  ).bind(key).first<{ key: string; status: string }>();
+
+  if (!license) {
+    return c.json({ error: "not found" }, 404);
+  }
+  if (license.status === "revoked") {
+    return c.json({ error: "already revoked" }, 409);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE licenses SET status = 'revoked', revoked_at = datetime('now') WHERE key = ?"
+  ).bind(key).run();
+
+  return c.json({ revoked: true, key });
+});
+
+// integrations 取得（admin）
+app.get("/admin/licenses/:key/integrations", adminMiddleware, async (c) => {
+  const key = c.req.param("key");
+  const row = await c.env.DB.prepare(
+    "SELECT * FROM license_integrations WHERE license_key = ?"
+  ).bind(key).first<Record<string, string | null>>();
+  return c.json({ integrations: row ?? null });
+});
+
+// integrations 登録・更新（admin）
+app.put("/admin/licenses/:key/integrations", adminMiddleware, async (c) => {
+  const key = c.req.param("key");
+  const body = await c.req.json<{
+    meta_access_token?: string;
+    meta_ad_account_id?: string;
+    line_channel_access_token?: string;
+    line_channel_secret?: string;
+    utage_api_key?: string;
+    google_ads_developer_token?: string;
+    google_ads_client_id?: string;
+    google_ads_client_secret?: string;
+    google_ads_refresh_token?: string;
+    google_ads_customer_id?: string;
+  }>();
+
+  const license = await c.env.DB.prepare("SELECT key FROM licenses WHERE key = ?")
+    .bind(key).first<{ key: string }>();
+  if (!license) return c.json({ error: "license not found" }, 404);
+
+  await c.env.DB.prepare(`
+    INSERT INTO license_integrations (
+      license_key, meta_access_token, meta_ad_account_id,
+      line_channel_access_token, line_channel_secret, utage_api_key,
+      google_ads_developer_token, google_ads_client_id, google_ads_client_secret,
+      google_ads_refresh_token, google_ads_customer_id, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(license_key) DO UPDATE SET
+      meta_access_token = excluded.meta_access_token,
+      meta_ad_account_id = excluded.meta_ad_account_id,
+      line_channel_access_token = excluded.line_channel_access_token,
+      line_channel_secret = excluded.line_channel_secret,
+      utage_api_key = excluded.utage_api_key,
+      google_ads_developer_token = excluded.google_ads_developer_token,
+      google_ads_client_id = excluded.google_ads_client_id,
+      google_ads_client_secret = excluded.google_ads_client_secret,
+      google_ads_refresh_token = excluded.google_ads_refresh_token,
+      google_ads_customer_id = excluded.google_ads_customer_id,
+      updated_at = datetime('now')
+  `).bind(
+    key,
+    body.meta_access_token ?? null,
+    body.meta_ad_account_id ?? null,
+    body.line_channel_access_token ?? null,
+    body.line_channel_secret ?? null,
+    body.utage_api_key ?? null,
+    body.google_ads_developer_token ?? null,
+    body.google_ads_client_id ?? null,
+    body.google_ads_client_secret ?? null,
+    body.google_ads_refresh_token ?? null,
+    body.google_ads_customer_id ?? null,
+  ).run();
+
+  return c.json({ ok: true });
 });
 
 // テレメトリ受信（public、license_key で認証）
@@ -197,28 +332,6 @@ app.get("/admin/telemetry/aggregate", adminMiddleware, async (c) => {
   ).bind(since).all();
 
   return c.json({ days, by_type: byType, by_day: byDay, top_users: topUsers });
-});
-
-// ライセンス失効（admin）
-app.delete("/admin/licenses/:key", adminMiddleware, async (c) => {
-  const key = c.req.param("key");
-
-  const license = await c.env.DB.prepare(
-    "SELECT key, status FROM licenses WHERE key = ?"
-  ).bind(key).first<{ key: string; status: string }>();
-
-  if (!license) {
-    return c.json({ error: "not found" }, 404);
-  }
-  if (license.status === "revoked") {
-    return c.json({ error: "already revoked" }, 409);
-  }
-
-  await c.env.DB.prepare(
-    "UPDATE licenses SET status = 'revoked', revoked_at = datetime('now') WHERE key = ?"
-  ).bind(key).run();
-
-  return c.json({ revoked: true, key });
 });
 
 export default app;

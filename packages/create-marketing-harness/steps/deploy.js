@@ -5,7 +5,7 @@ import { d1Create, d1Execute, deploy, putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 
 export async function run({ config }) {
-  printStepHeader(8, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
+  printStepHeader(4, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
 
   const { projectDir } = config;
   const workerDir = join(projectDir, "apps/worker");
@@ -36,19 +36,20 @@ export async function run({ config }) {
   await putSecret("LICENSE_KEY", config.licenseKey, wranglerOpts);
   await putSecret("LICENSE_SERVER_URL", config.licenseServerUrl, wranglerOpts);
 
-  // 連携 secret（init 時は空なので no-op、configure 時に使用）
-  const meta = config.meta ?? {};
-  await putSecret("META_ACCESS_TOKEN", meta.token, wranglerOpts);
-  await putSecret("META_AD_ACCOUNT_ID", meta.accountId, wranglerOpts);
+  // 連携 secret（license-server から取得済みの integrations を注入）
+  const integ = config.integrations ?? {};
+  const meta = integ.meta ?? config.meta ?? {};
+  await putSecret("META_ACCESS_TOKEN", meta.accessToken ?? meta.token, wranglerOpts);
+  await putSecret("META_AD_ACCOUNT_ID", meta.adAccountId ?? meta.accountId, wranglerOpts);
 
-  const line = config.line ?? {};
+  const line = integ.line ?? config.line ?? {};
   await putSecret("LINE_CHANNEL_ACCESS_TOKEN", line.channelAccessToken, wranglerOpts);
   await putSecret("LINE_CHANNEL_SECRET", line.channelSecret, wranglerOpts);
 
-  const utage = config.utage ?? {};
+  const utage = integ.utage ?? config.utage ?? {};
   await putSecret("UTAGE_API_KEY", utage.apiKey, wranglerOpts);
 
-  const gads = config.googleAds ?? {};
+  const gads = integ.googleAds ?? config.googleAds ?? {};
   await putSecret("GOOGLE_ADS_DEVELOPER_TOKEN", gads.developerToken, wranglerOpts);
   await putSecret("GOOGLE_ADS_CLIENT_ID", gads.clientId, wranglerOpts);
   await putSecret("GOOGLE_ADS_CLIENT_SECRET", gads.clientSecret, wranglerOpts);
@@ -80,10 +81,10 @@ export async function run({ config }) {
     mcpServerName: "marketing-harness",
     integrations: {
       cloudflare: { enabled: true, configuredAt: now },
-      meta:       { enabled: !!(config.meta?.token),                configuredAt: config.meta?.token ? now : undefined },
-      line:       { enabled: !!(config.line?.channelAccessToken),   configuredAt: config.line?.channelAccessToken ? now : undefined },
-      utage:      { enabled: !!(config.utage?.apiKey),              configuredAt: config.utage?.apiKey ? now : undefined },
-      googleAds:  { enabled: !!(config.googleAds?.refreshToken),    configuredAt: config.googleAds?.refreshToken ? now : undefined },
+      meta:       { enabled: !!(integ.meta?.accessToken ?? config.meta?.token),              configuredAt: (integ.meta?.accessToken ?? config.meta?.token) ? now : undefined },
+      line:       { enabled: !!(integ.line?.channelAccessToken ?? config.line?.channelAccessToken), configuredAt: (integ.line?.channelAccessToken ?? config.line?.channelAccessToken) ? now : undefined },
+      utage:      { enabled: !!(integ.utage?.apiKey ?? config.utage?.apiKey),                configuredAt: (integ.utage?.apiKey ?? config.utage?.apiKey) ? now : undefined },
+      googleAds:  { enabled: !!(integ.googleAds?.refreshToken ?? config.googleAds?.refreshToken), configuredAt: (integ.googleAds?.refreshToken ?? config.googleAds?.refreshToken) ? now : undefined },
     },
     lastLaunchAt: null,
   });

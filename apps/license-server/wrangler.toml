@@ -3,6 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+COMMUNITY_JOIN_URL = "https://marketing-harness-license.gkoinobori0505.workers.dev/join"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "marketing-harness-license"

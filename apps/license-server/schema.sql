@@ -32,3 +32,18 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_key_time ON telemetry_events(license_key, received_at DESC);
 CREATE INDEX IF NOT EXISTS idx_telemetry_type_time ON telemetry_events(event_type, received_at DESC);
+
+CREATE TABLE IF NOT EXISTS license_integrations (
+  license_key TEXT PRIMARY KEY REFERENCES licenses(key) ON DELETE CASCADE,
+  meta_access_token TEXT,
+  meta_ad_account_id TEXT,
+  line_channel_access_token TEXT,
+  line_channel_secret TEXT,
+  utage_api_key TEXT,
+  google_ads_developer_token TEXT,
+  google_ads_client_id TEXT,
+  google_ads_client_secret TEXT,
+  google_ads_refresh_token TEXT,
+  google_ads_customer_id TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
