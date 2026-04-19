@@ -4,6 +4,7 @@ import { runSetup } from "../lib/guided-setup.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 import { runWithFallback } from "../lib/connector.js";
+import { registerRemoteMcpServer } from "../lib/mcp-settings.js";
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -28,14 +29,21 @@ export async function run({ config, mode }) {
 
   config.utage = { apiKey };
 
+  // UTAGE 公式リモート MCP を .claude/settings.json に登録
+  registerRemoteMcpServer(config.projectDir, {
+    name: "utage",
+    url: "https://api.utage-system.com/mcp",
+    apiKey,
+  });
+
   if (mode === "configure") {
     const workerDir = join(config.projectDir, "apps/worker");
     const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("UTAGE_API_KEY", apiKey, opts);
     writeConfig(config.projectDir, { integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } } });
-    printSuccess("UTAGE 連携を設定しました");
+    printSuccess("UTAGE 連携を設定しました（公式 MCP を有効化しました）");
   } else {
-    printSuccess("UTAGE の情報を取得しました（起動時に自動で設定されます）");
+    printSuccess("UTAGE の情報を取得しました（起動時に公式 MCP が自動で有効化されます）");
   }
 
   return { skipped: false };
