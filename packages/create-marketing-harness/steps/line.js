@@ -1,4 +1,5 @@
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
+import { join } from "path";
+import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
@@ -19,16 +20,16 @@ export async function run({ config, mode }) {
     }
   }
 
-  const method = await askSelect("LINE チャンネルアクセストークンの取得方法:", [
-    { title: "手順を見ながら自分で取得する", value: "manual" },
-    { title: "Claude in Chrome に任せる（Pro/Max/Team/Enterprise プラン必須）", value: "chrome" },
-  ]);
-
   let channelAccessToken, channelSecret;
 
-  if (method === "manual") {
+  const result = await runWithClaudeInChrome({ specId: "line" });
+
+  if (result) {
+    channelAccessToken = result.channelAccessToken;
+    channelSecret = result.channelSecret;
+  } else {
     printInfo([
-      "LINE Developers Console でチャンネルを作成してください:",
+      "自動取得できなかったので、以下の手順で手動入力してください:",
       "",
       "1. https://developers.line.biz/console/ を開く",
       "2. プロバイダーを選択（または新規作成）",
@@ -43,21 +44,13 @@ export async function run({ config, mode }) {
     ]);
     channelAccessToken = await askText("チャンネルアクセストークン（長期）:");
     channelSecret = await askText("チャンネルシークレット:");
-  } else {
-    const result = await runWithClaudeInChrome({ specId: "line" });
-    if (!result) {
-      printSkipped("line");
-      config.line = {};
-      return { skipped: true };
-    }
-    channelAccessToken = result.channelAccessToken;
-    channelSecret = result.channelSecret;
   }
 
   config.line = { channelAccessToken, channelSecret };
 
   if (mode === "configure") {
-    const opts = { cwd: config.projectDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("LINE_CHANNEL_ACCESS_TOKEN", channelAccessToken, opts);
     await putSecret("LINE_CHANNEL_SECRET", channelSecret, opts);
     writeConfig(config.projectDir, { integrations: { line: { enabled: true, configuredAt: new Date().toISOString() } } });

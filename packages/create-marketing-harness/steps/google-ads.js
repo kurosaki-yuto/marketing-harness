@@ -1,4 +1,5 @@
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText, askConfirm } from "../lib/prompts.js";
+import { join } from "path";
+import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText, askConfirm } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
@@ -43,16 +44,15 @@ export async function run({ config, mode }) {
     return { skipped: true };
   }
 
-  const method = await askSelect("認証情報の取得方法:", [
-    { title: "手順を見ながら自分で取得する", value: "manual" },
-    { title: "Claude in Chrome に任せる（Pro/Max/Team/Enterprise プラン必須）", value: "chrome" },
-  ]);
-
   let developerToken, clientId, clientSecret, refreshToken, customerId;
 
-  if (method === "manual") {
+  const result = await runWithClaudeInChrome({ specId: "google-ads" });
+
+  if (result) {
+    ({ developerToken, clientId, clientSecret, refreshToken, customerId } = result);
+  } else {
     printInfo([
-      "以下の情報を準備してください:",
+      "自動取得できなかったので、以下の情報を手動で入力してください:",
       "",
       "【Developer Token】",
       "  Google Ads → ツールと設定 → API センター で確認",
@@ -85,20 +85,13 @@ export async function run({ config, mode }) {
     customerId = await askText("カスタマー ID（ハイフンなし）:", {
       validate: (v) => /^\d+$/.test(v) ? true : "数字のみで入力してください",
     });
-  } else {
-    const result = await runWithClaudeInChrome({ specId: "google-ads" });
-    if (!result) {
-      printSkipped("google-ads");
-      config.googleAds = {};
-      return { skipped: true };
-    }
-    ({ developerToken, clientId, clientSecret, refreshToken, customerId } = result);
   }
 
   config.googleAds = { developerToken, clientId, clientSecret, refreshToken, customerId };
 
   if (mode === "configure") {
-    const opts = { cwd: config.projectDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("GOOGLE_ADS_DEVELOPER_TOKEN", developerToken, opts);
     await putSecret("GOOGLE_ADS_CLIENT_ID", clientId, opts);
     await putSecret("GOOGLE_ADS_CLIENT_SECRET", clientSecret, opts);

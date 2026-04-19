@@ -1,4 +1,5 @@
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
+import { join } from "path";
+import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
@@ -19,16 +20,16 @@ export async function run({ config, mode }) {
     }
   }
 
-  const method = await askSelect("Meta のシステムユーザートークンの取得方法:", [
-    { title: "手順を見ながら自分で取得する", value: "manual" },
-    { title: "Claude in Chrome に任せる（Pro/Max/Team/Enterprise プラン必須）", value: "chrome" },
-  ]);
-
   let token, accountId;
 
-  if (method === "manual") {
+  const result = await runWithClaudeInChrome({ specId: "meta" });
+
+  if (result) {
+    token = result.token;
+    accountId = result.accountId;
+  } else {
     printInfo([
-      "以下の手順でシステムユーザートークンを発行してください:",
+      "自動取得できなかったので、以下の手順で手動入力してください:",
       "",
       "1. https://business.facebook.com/settings/system-users を開く",
       "2. 「システムユーザーを追加」→「管理者」ロールで作成",
@@ -44,21 +45,13 @@ export async function run({ config, mode }) {
     accountId = await askText("広告アカウントID (act_XXXXXXXXXX):", {
       validate: (v) => v.startsWith("act_") ? true : "act_ で始まる形式で入力してください",
     });
-  } else {
-    const result = await runWithClaudeInChrome({ specId: "meta" });
-    if (!result) {
-      printSkipped("meta");
-      config.meta = {};
-      return { skipped: true };
-    }
-    token = result.token;
-    accountId = result.accountId;
   }
 
   config.meta = { token, accountId };
 
   if (mode === "configure") {
-    const opts = { cwd: config.projectDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("META_ACCESS_TOKEN", token, opts);
     await putSecret("META_AD_ACCOUNT_ID", accountId, opts);
     writeConfig(config.projectDir, { integrations: { meta: { enabled: true, configuredAt: new Date().toISOString() } } });

@@ -1,78 +1,84 @@
 import { execa } from "execa";
-import { readFileSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
-import { askText, printInfo } from "./prompts.js";
 import { loadSpec, buildPrompt, getExtracts } from "./spec-loader.js";
-
-function hasClaudeInChromeMcp() {
-  const checkFiles = [
-    join(homedir(), ".claude", "settings.json"),
-    join(process.cwd(), ".mcp.json"),
-    join(process.cwd(), ".claude", "settings.json"),
-  ];
-  for (const f of checkFiles) {
-    try {
-      const text = readFileSync(f, "utf8");
-      if (text.includes("claude-in-chrome")) return true;
-    } catch {}
-  }
-  return false;
-}
 
 export async function runWithClaudeInChrome({ specId }) {
   const spec = loadSpec(specId);
   const extracts = getExtracts(spec);
 
+  const outputTemplate = JSON.stringify(
+    Object.fromEntries(extracts.map((e) => [e.field, `<${e.label}>`])),
+    null,
+    2,
+  );
+
   const fullPrompt = [
-    `mcp__claude-in-chrome__* のブラウザ自動化ツールを使って「${spec.label}」の認証情報を取得してください。`,
-    `全ステップ完了後、取得した値を必ず \`\`\`json ... \`\`\` ブロックだけで出力してください（説明文は不要）。`,
+    "あなたは自動化エージェントです。ユーザーに一切質問せず、利用可能な MCP ブラウザ自動化ツールを使って以下のタスクを完遂してください。",
+    "",
+    `# タスク: 「${spec.label}」の認証情報を取得`,
+    "",
+    "# 利用可能なツール（どれか 1 つを選んで使用）",
+    "- mcp__claude-in-chrome__* （推奨: ユーザーが既にログイン済みの Chrome セッションを利用）",
+    "- mcp__plugin_playwright_playwright__* （代替: 独立 Chromium。ログインが必要なページには届かない可能性あり）",
     "",
     buildPrompt(spec),
+    "",
+    "# 出力形式（必須）",
+    "全ステップ完了後、最後に必ず以下の JSON のみを単独の ```json コードブロックで出力してください:",
+    "```json",
+    outputTemplate,
+    "```",
+    "",
+    "# 厳守事項",
+    "- ユーザーへの質問は一切禁止（全て自動判断）",
+    "- ツール選択も自動で行う（最初に使える方から試す）",
+    "- ログインが必要で未ログインの場合、該当フィールドに空文字を入れて JSON を出力（呼び出し元がフォールバックします）",
   ].join("\n");
 
-  // claude-in-chrome MCP が登録されているか静的チェック
-  const mcpAvailable = hasClaudeInChromeMcp();
-  // claude CLI 自体の存在確認
-  const claudeAvailable = mcpAvailable && await execa("claude", ["--version"], { reject: false })
+  // claude CLI の存在確認
+  const claudeOk = await execa("claude", ["--version"], { reject: false })
     .then((r) => r.exitCode === 0)
     .catch(() => false);
 
-  if (!claudeAvailable) {
-    if (mcpAvailable === false) {
-      console.log("  （Claude in Chrome MCP が未登録のため、手動入力で進めます）");
-    }
-    return await fallbackClipboard(specId, spec, extracts, fullPrompt);
-  }
-
-  if (spec.prerequisites?.length) {
-    printInfo([`${spec.label} の事前確認:`, ...spec.prerequisites.map((p) => `  - ${p}`)]);
-  }
-
-  console.log(`\n  Claude Code が「${spec.label}」を自動セットアップします...\n`);
-  console.log("─".repeat(52));
-
-  let output = "";
-  try {
-    const proc = execa("claude", ["--print", fullPrompt], {
-      env: { ...process.env },
-      timeout: 600_000,
-      reject: false,
-    });
-    proc.stdout?.on("data", (chunk) => { process.stdout.write(chunk); output += chunk.toString(); });
-    proc.stderr?.on("data", (chunk) => { process.stderr.write(chunk); });
-    await proc;
-  } catch (err) {
-    console.error(`\n  Claude Code の実行に失敗しました: ${err.message}`);
+  if (!claudeOk) {
+    console.log("  （Claude Code CLI が見つかりません。手動入力モードに切り替えます）\n");
     return null;
   }
 
-  console.log("\n" + "─".repeat(52));
+  console.log(`\n  Claude Code を起動して「${spec.label}」の情報を自動取得します...\n`);
+  console.log("─".repeat(58));
+
+  let output = "";
+  const proc = execa(
+    "claude",
+    ["--print", "--permission-mode", "bypassPermissions", fullPrompt],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env },
+      timeout: 600_000,
+      reject: false,
+    },
+  );
+  proc.stdout?.on("data", (chunk) => {
+    process.stdout.write(chunk);
+    output += chunk.toString();
+  });
+  proc.stderr?.on("data", (chunk) => {
+    process.stderr.write(chunk);
+  });
+
+  try {
+    await proc;
+  } catch (err) {
+    console.error(`\n  Claude Code の実行に失敗: ${err.message}`);
+    console.log("─".repeat(58) + "\n");
+    return null;
+  }
+
+  console.log("\n" + "─".repeat(58) + "\n");
 
   const jsonMatch = output.match(/```json\s*([\s\S]*?)```/);
   if (!jsonMatch) {
-    console.log("  JSON ブロックが出力されませんでした。手動で再実行できます:");
-    console.log(`    marketing-harness configure ${specId}\n`);
+    console.log("  JSON 出力が見つかりませんでした。手動入力モードに切り替えます。\n");
     return null;
   }
 
@@ -80,72 +86,26 @@ export async function runWithClaudeInChrome({ specId }) {
   try {
     parsed = JSON.parse(jsonMatch[1].trim());
   } catch {
-    console.log("  JSON のパースに失敗しました。");
+    console.log("  JSON のパースに失敗しました。手動入力モードに切り替えます。\n");
     return null;
   }
 
-  return validate(parsed, extracts, specId);
-}
-
-async function fallbackClipboard(specId, spec, extracts, promptText) {
-  const { default: clipboard } = await import("clipboardy");
-  const { default: open } = await import("open");
-
-  printInfo([
-    `Claude in Chrome で「${spec.label}」の認証情報を取得します。`,
-    "",
-    "事前準備:",
-    "  1. Claude Pro / Max / Team / Enterprise プランへの加入",
-    "  2. Chrome 拡張: https://chromewebstore.google.com/detail/claude/ghkbgpnilfehbibimgapmipdiknkkjif",
-    "  3. chrome://extensions/ で「Claude」を有効化",
-    ...(spec.prerequisites?.length ? ["", `${spec.label} の事前確認:`, ...spec.prerequisites.map((p) => `  - ${p}`)] : []),
-  ]);
-
-  const { askConfirm } = await import("./prompts.js");
-  const isReady = await askConfirm("上記の準備は完了していますか？", false);
-  if (!isReady) {
-    await open("https://chromewebstore.google.com/detail/claude/ghkbgpnilfehbibimgapmipdiknkkjif").catch(() => {});
-    console.log(`\n  インストール後: marketing-harness configure ${specId}\n`);
+  // 必須フィールドのいずれかが空ならフォールバック
+  const missing = extracts
+    .filter((e) => e.required && (!parsed[e.field] || parsed[e.field] === ""))
+    .map((e) => e.label);
+  if (missing.length > 0) {
+    console.log(`  取得できなかった項目: ${missing.join(", ")} — 手動入力に切り替えます。\n`);
     return null;
   }
 
-  await clipboard.write(promptText);
-  console.log("\n  プロンプトをクリップボードにコピーしました。Claude に貼り付けて実行してください。");
-  await open("https://claude.ai/new").catch(() => {});
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const raw = await askText(`JSON を貼り付け${attempt > 1 ? ` (${attempt}/3)` : ""}:`);
-    let parsed;
-    try {
-      const jsonStr = raw.trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      if (attempt < 3) { console.log("  JSON のパースに失敗しました。再度貼り付けてください。"); continue; }
-      return null;
-    }
-    const result = validate(parsed, extracts, specId);
-    if (result) return result;
-    if (attempt < 3) console.log("  再度貼り付けてください。\n");
-  }
-  return null;
-}
-
-function validate(parsed, extracts, specId) {
-  const errors = [];
+  // pattern 検証（失敗時は警告のみ）
   for (const extract of extracts) {
     const value = parsed[extract.field];
-    if (extract.required && !value) {
-      errors.push(`  - 「${extract.label}」が含まれていません`);
-      continue;
-    }
     if (value && extract.pattern && !new RegExp(extract.pattern).test(value)) {
-      errors.push(`  - 「${extract.label}」の形式が正しくありません（期待: ${extract.pattern}）`);
+      console.log(`  警告: 「${extract.label}」の形式が想定と異なります（${extract.pattern}）`);
     }
   }
-  if (errors.length > 0) {
-    console.log("\n  警告: 一部のフィールドに問題があります:");
-    for (const e of errors) console.log(e);
-    console.log(`  後から修正: marketing-harness configure ${specId}\n`);
-  }
+
   return parsed;
 }

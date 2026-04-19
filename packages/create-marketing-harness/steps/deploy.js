@@ -5,7 +5,7 @@ import { d1Create, d1Execute, deploy, putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
 
 export async function run({ config }) {
-  printStepHeader(4, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
+  printStepHeader(8, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
 
   const { projectDir } = config;
   const workerDir = join(projectDir, "apps/worker");

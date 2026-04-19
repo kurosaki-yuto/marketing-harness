@@ -1,4 +1,5 @@
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
+import { join } from "path";
+import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
@@ -19,16 +20,15 @@ export async function run({ config, mode }) {
     }
   }
 
-  const method = await askSelect("UTAGE API キーの取得方法:", [
-    { title: "手順を見ながら自分で取得する", value: "manual" },
-    { title: "Claude in Chrome に任せる（Pro/Max/Team/Enterprise プラン必須）", value: "chrome" },
-  ]);
-
   let apiKey;
 
-  if (method === "manual") {
+  const result = await runWithClaudeInChrome({ specId: "utage" });
+
+  if (result) {
+    apiKey = result.apiKey;
+  } else {
     printInfo([
-      "UTAGE 管理画面から API キーを発行してください:",
+      "自動取得できなかったので、以下の手順で手動入力してください:",
       "",
       "1. UTAGE 管理画面にログイン",
       "2. 左メニューまたは設定から「API 設定」を開く",
@@ -36,20 +36,13 @@ export async function run({ config, mode }) {
       "4. 表示された API キーをコピー",
     ]);
     apiKey = await askText("UTAGE API キー:");
-  } else {
-    const result = await runWithClaudeInChrome({ specId: "utage" });
-    if (!result) {
-      printSkipped("utage");
-      config.utage = {};
-      return { skipped: true };
-    }
-    apiKey = result.apiKey;
   }
 
   config.utage = { apiKey };
 
   if (mode === "configure") {
-    const opts = { cwd: config.projectDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
+    const workerDir = join(config.projectDir, "apps/worker");
+    const opts = { cwd: workerDir, env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {} };
     await putSecret("UTAGE_API_KEY", apiKey, opts);
     writeConfig(config.projectDir, { integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("UTAGE 連携を設定しました");
