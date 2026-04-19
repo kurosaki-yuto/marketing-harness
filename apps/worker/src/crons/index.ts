@@ -1,5 +1,7 @@
 import { syncMetaAds } from "./meta-sync";
 import { sendMorningBrief } from "./morning-brief";
+import { publishApprovedPosts } from "./social-publish";
+import { append } from "../audit/event-stream";
 import type { Env } from "../index";
 
 export async function handleCron(event: ScheduledEvent, env: Env): Promise<void> {
@@ -14,6 +16,9 @@ export async function handleCron(event: ScheduledEvent, env: Env): Promise<void>
   if (event.cron === "0 23 * * *") {
     await sendMorningBrief(env);
   }
+
+  // SNS 承認済み投稿を実投稿（毎5分）
+  await publishApprovedPosts(env);
 
   // KPI監視（毎5分）
   await checkKpiAlerts(env);

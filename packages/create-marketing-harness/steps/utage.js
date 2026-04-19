@@ -1,8 +1,9 @@
 import { join } from "path";
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
-import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
+import { printStepHeader, printSkipped, printSuccess, askSkip } from "../lib/prompts.js";
+import { runSetup } from "../lib/guided-setup.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
+import { runWithFallback } from "../lib/connector.js";
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -20,23 +21,10 @@ export async function run({ config, mode }) {
     }
   }
 
-  let apiKey;
-
-  const result = await runWithClaudeInChrome({ specId: "utage" });
-
-  if (result) {
-    apiKey = result.apiKey;
-  } else {
-    printInfo([
-      "自動取得できなかったので、以下の手順で手動入力してください:",
-      "",
-      "1. UTAGE 管理画面にログイン",
-      "2. 左メニューまたは設定から「API 設定」を開く",
-      "3. API キーが未発行の場合は「発行」をクリック",
-      "4. 表示された API キーをコピー",
-    ]);
-    apiKey = await askText("UTAGE API キー:");
-  }
+  const MANUAL = `1. UTAGE 管理画面 → 設定 → API 連携 → API キーを発行\n2. 取得後、再度このコマンドを実行してください`;
+  const setup = await runWithFallback("utage", () => runSetup("utage"), MANUAL);
+  if (!setup.success) { config.utage = {}; return { skipped: true }; }
+  const { apiKey } = setup.result;
 
   config.utage = { apiKey };
 
@@ -47,7 +35,7 @@ export async function run({ config, mode }) {
     writeConfig(config.projectDir, { integrations: { utage: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("UTAGE 連携を設定しました");
   } else {
-    printSuccess("UTAGE の情報を取得しました（デプロイ時に設定します）");
+    printSuccess("UTAGE の情報を取得しました（起動時に自動で設定されます）");
   }
 
   return { skipped: false };

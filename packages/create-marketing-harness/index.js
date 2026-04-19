@@ -33,6 +33,35 @@ async function runLaunch(projectDir, { raw = false } = {}) {
   await run({ projectDir, raw });
 }
 
+async function runResume(service) {
+  const validServices = ["meta", "line", "utage", "google-ads"];
+  if (!validServices.includes(service)) {
+    console.error(`\n  未知のサービス: ${service}`);
+    console.error(`  使用できるサービス: ${validServices.join(", ")}`);
+    process.exit(1);
+  }
+
+  const { state, projectDir } = detectProject(process.cwd());
+  if (state === "outside") {
+    console.error("\n  プロジェクトルートで実行してください");
+    process.exit(1);
+  }
+
+  console.log(`\n  marketing-harness resume: ${service} の連携を再開します\n`);
+
+  const config = { projectDir };
+  const stepMap = {
+    meta:         "./steps/meta.js",
+    line:         "./steps/line.js",
+    utage:        "./steps/utage.js",
+    "google-ads": "./steps/google-ads.js",
+  };
+
+  const { run } = await import(stepMap[service]);
+  await run({ config, mode: "configure" });
+  console.log("\n  設定が完了しました。\n");
+}
+
 async function runConfigure(service) {
   const validServices = ["cloudflare", "meta", "line", "utage", "google-ads"];
   if (!validServices.includes(service)) {
@@ -122,7 +151,7 @@ if (raw) argv.splice(rawIdx, 1);
 const [sub, svc] = argv;
 const binName = basename(process.argv[1] ?? "");
 
-const SUBCOMMANDS = new Set(["configure", "launch", "setup", "init", "help", "--help", "-h", "--version", "-v"]);
+const SUBCOMMANDS = new Set(["configure", "resume", "launch", "setup", "init", "help", "--help", "-h", "--version", "-v"]);
 
 async function main() {
   if (sub && SUBCOMMANDS.has(sub)) {
@@ -134,6 +163,14 @@ async function main() {
           process.exit(1);
         }
         await runConfigure(svc);
+        break;
+      case "resume":
+        if (!svc) {
+          console.error("\n  使い方: marketing-harness resume <service>");
+          console.error("  サービス: meta / line / utage / google-ads\n");
+          process.exit(1);
+        }
+        await runResume(svc);
         break;
       case "setup":
       case "init":

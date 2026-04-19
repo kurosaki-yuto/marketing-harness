@@ -1,0 +1,28 @@
+# marketing-harness action allowlist (stripe/agent-toolkit パターン)
+# auto: Claude が自動実行可能
+# approve_required: ユーザーの明示的な承認が必要（事前に内容を提示する）
+
+actions:
+  # 広告データ読み取りは自動
+  ads.read: auto
+  ads.analyze: auto
+  knowledge.read: auto
+  knowledge.write: auto
+  report.generate: auto
+
+  # KPI 設定は上書きになるので承認必須
+  kpi.set: approve_required
+  kpi.delete: approve_required
+
+  # SNS 投稿は承認後に cron が実行
+  sns.propose: auto
+  sns.approve: approve_required
+  sns.publish: approve_required
+
+  # LINE 配信は承認必須
+  line.broadcast: approve_required
+  line.send: approve_required
+
+  # UTAGE（将来）
+  utage.mail.send: approve_required
+  utage.checkout.create: approve_required

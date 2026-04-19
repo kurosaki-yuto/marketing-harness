@@ -1,8 +1,9 @@
 import { join } from "path";
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
-import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
+import { printStepHeader, printSkipped, printSuccess, askSkip } from "../lib/prompts.js";
+import { runSetup } from "../lib/guided-setup.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
+import { runWithFallback } from "../lib/connector.js";
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -20,31 +21,10 @@ export async function run({ config, mode }) {
     }
   }
 
-  let channelAccessToken, channelSecret;
-
-  const result = await runWithClaudeInChrome({ specId: "line" });
-
-  if (result) {
-    channelAccessToken = result.channelAccessToken;
-    channelSecret = result.channelSecret;
-  } else {
-    printInfo([
-      "自動取得できなかったので、以下の手順で手動入力してください:",
-      "",
-      "1. https://developers.line.biz/console/ を開く",
-      "2. プロバイダーを選択（または新規作成）",
-      "3. 「チャンネルを作成」→「Messaging API」を選択",
-      "4. 必要事項を入力してチャンネルを作成",
-      "5. 「Messaging API 設定」タブを開く",
-      "6. 「チャンネルアクセストークン（長期）」の「発行」をクリック",
-      "7. トークンをコピー",
-      "8. 「基本設定」タブに戻り「チャンネルシークレット」をコピー",
-      "",
-      "※ Webhook は push 配信のみなら設定不要です",
-    ]);
-    channelAccessToken = await askText("チャンネルアクセストークン（長期）:");
-    channelSecret = await askText("チャンネルシークレット:");
-  }
+  const MANUAL = `1. https://developers.line.biz → Messaging API チャネルを作成\n2. チャネルアクセストークン（長期）をコピー\n3. チャネルシークレットをコピー\n4. 取得後、再度このコマンドを実行してください`;
+  const setup = await runWithFallback("line", () => runSetup("line"), MANUAL);
+  if (!setup.success) { config.line = {}; return { skipped: true }; }
+  const { channelAccessToken, channelSecret } = setup.result;
 
   config.line = { channelAccessToken, channelSecret };
 
@@ -56,7 +36,7 @@ export async function run({ config, mode }) {
     writeConfig(config.projectDir, { integrations: { line: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("LINE 連携を設定しました");
   } else {
-    printSuccess("LINE の情報を取得しました（デプロイ時に設定します）");
+    printSuccess("LINE の情報を取得しました（起動時に自動で設定されます）");
   }
 
   return { skipped: false };

@@ -163,7 +163,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         type: "object",
         properties: {
           platform: { type: "string", description: "プラットフォームでフィルタ（省略可）" },
-          status: { type: "string", description: "ステータスでフィルタ: draft / scheduled / published / failed（省略可）" },
+          status: { type: "string", description: "ステータスでフィルタ: proposed / approved / scheduled / published / failed（省略可）" },
         },
       },
     },
@@ -185,7 +185,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "publish_social_post_now",
-      description: "SNS 投稿をキューに追加します（Phase2 で実際の投稿 API を呼び出します）",
+      description: "SNS 投稿を承認します（ユーザー確認後に approve 状態にし、5 分以内に自動投稿されます）",
       inputSchema: {
         type: "object",
         properties: {
@@ -388,8 +388,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "publish_social_post_now": {
-        const data = await apiCall(`/api/social/posts/${a.post_id}/publish`, { method: "POST" });
-        return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        const data = await apiCall(`/api/social/posts/${a.post_id}/approve`, { method: "POST" });
+        return { content: [{ type: "text", text: `承認しました。5 分以内に自動投稿されます (id: ${(data as { id: string }).id})` }] };
       }
 
       case "delete_social_post": {

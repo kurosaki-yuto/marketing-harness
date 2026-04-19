@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS social_accounts (
 );
 
 -- SNS 投稿（予約・公開管理）
+-- status: proposed(SNSプランナーが提案) → approved(ユーザー承認) → scheduled(投稿キュー) → published / failed
 CREATE TABLE IF NOT EXISTS social_posts (
   id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
   account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -151,11 +152,30 @@ CREATE TABLE IF NOT EXISTS social_posts (
   media_url TEXT NOT NULL,
   caption TEXT,
   scheduled_at TEXT,
-  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published', 'failed')),
+  status TEXT DEFAULT 'proposed' CHECK (status IN ('proposed', 'approved', 'draft', 'scheduled', 'published', 'failed')),
   external_post_id TEXT,
   error_message TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   published_at TEXT
+);
+
+-- イベントストリーム（OpenHands 方式: append-only）
+-- 重要アクションの監査ログ: KPI上書き / SNS投稿 / LINE配信 / 連携失敗
+CREATE TABLE IF NOT EXISTS events (
+  session_id TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('action', 'observation', 'delegate', 'connector')),
+  actor TEXT NOT NULL CHECK (actor IN ('user', 'agent', 'tool', 'cron')),
+  payload_json TEXT NOT NULL,
+  ts TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (session_id, seq)
+);
+
+-- セッション状態（上書き保存: base_state は overwrite、events は append-only）
+CREATE TABLE IF NOT EXISTS base_state (
+  session_id TEXT PRIMARY KEY,
+  json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- インデックス
@@ -168,3 +188,5 @@ CREATE INDEX IF NOT EXISTS idx_kpi_campaign ON kpi_settings(account_id, campaign
 CREATE INDEX IF NOT EXISTS idx_reports_month ON reports(account_id, company_id, month);
 CREATE INDEX IF NOT EXISTS idx_social_accounts_account ON social_accounts(account_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_account ON social_posts(account_id, status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, seq);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(type, actor, ts);

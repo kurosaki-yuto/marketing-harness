@@ -1,8 +1,9 @@
 import { join } from "path";
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText, askConfirm } from "../lib/prompts.js";
-import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
+import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askConfirm } from "../lib/prompts.js";
+import { runSetup } from "../lib/guided-setup.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
+import { runWithFallback } from "../lib/connector.js";
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -12,9 +13,8 @@ export async function run({ config, mode }) {
   );
 
   printInfo([
-    "注意: Google Ads API の Developer Token 取得には 1〜5 営業日の審査があります。",
-    "審査中はスキップして、承認後に以下で再設定できます:",
-    "  npx marketing-harness configure google-ads",
+    "注意: Google 広告 API の利用申請には 1〜5 営業日かかります。",
+    "審査中はスキップして、承認後に「連携を追加・変更する」から再設定できます。",
   ]);
 
   if (mode === "init") {
@@ -33,59 +33,20 @@ export async function run({ config, mode }) {
 
   if (!devTokenReady) {
     printInfo([
-      "Developer Token を申請してください:",
+      "Google 広告 API の利用申請を先に行ってください:",
       "1. https://ads.google.com/aw/apicenter を開く（MCC アカウントが必要）",
-      "2. Developer Token を申請（Basic access）",
-      "3. 審査完了メールが届いたら以下を実行:",
-      "   npx marketing-harness configure google-ads",
+      "2. 申請フォームを送信（Basic access）",
+      "3. 審査完了メールが届いたら「連携を追加・変更する」から再設定できます",
     ]);
     printSkipped("google-ads");
     config.googleAds = {};
     return { skipped: true };
   }
 
-  let developerToken, clientId, clientSecret, refreshToken, customerId;
-
-  const result = await runWithClaudeInChrome({ specId: "google-ads" });
-
-  if (result) {
-    ({ developerToken, clientId, clientSecret, refreshToken, customerId } = result);
-  } else {
-    printInfo([
-      "自動取得できなかったので、以下の情報を手動で入力してください:",
-      "",
-      "【Developer Token】",
-      "  Google Ads → ツールと設定 → API センター で確認",
-      "",
-      "【OAuth2 クライアント認証情報】",
-      "  1. https://console.cloud.google.com/ を開く",
-      "  2. APIs & Services → Credentials → Create Credentials → OAuth Client ID",
-      "  3. アプリタイプ: Desktop app で作成",
-      "  4. Client ID と Client Secret をコピー",
-      "",
-      "【重要】OAuth 同意画面を本番環境に変更してください:",
-      "  APIs & Services → OAuth consent screen → アプリを公開",
-      "  ※テストのままだとリフレッシュトークンが 7 日で失効します",
-      "",
-      "【リフレッシュトークン】",
-      "  1. https://developers.google.com/oauthplayground/ を開く",
-      "  2. 右上の設定 → Use your own OAuth credentials をチェック",
-      "  3. Client ID と Secret を入力",
-      "  4. Google Ads API v18 → https://www.googleapis.com/auth/adwords を選択",
-      "  5. Authorize APIs → Exchange authorization code for tokens",
-      "",
-      "【カスタマー ID】",
-      "  Google Ads 管理画面右上に表示される 123-456-7890 形式の ID",
-      "  ハイフンなしで入力 (例: 1234567890)",
-    ]);
-    developerToken = await askText("Developer Token:");
-    clientId = await askText("OAuth2 クライアント ID:");
-    clientSecret = await askText("OAuth2 クライアントシークレット:");
-    refreshToken = await askText("リフレッシュトークン:");
-    customerId = await askText("カスタマー ID（ハイフンなし）:", {
-      validate: (v) => /^\d+$/.test(v) ? true : "数字のみで入力してください",
-    });
-  }
+  const MANUAL = `1. Google Ads API センター (https://ads.google.com/aw/apicenter) で Developer Token を申請\n2. OAuth クライアント ID・シークレットを Google Cloud Console で取得\n3. リフレッシュトークンは OAuth Playground で取得可能\n4. 取得後、再度このコマンドを実行してください`;
+  const setup = await runWithFallback("google-ads", () => runSetup("google-ads"), MANUAL);
+  if (!setup.success) { config.googleAds = {}; return { skipped: true }; }
+  const { developerToken, clientId, clientSecret, refreshToken, customerId } = setup.result;
 
   config.googleAds = { developerToken, clientId, clientSecret, refreshToken, customerId };
 
@@ -100,7 +61,7 @@ export async function run({ config, mode }) {
     writeConfig(config.projectDir, { integrations: { googleAds: { enabled: true, configuredAt: new Date().toISOString() } } });
     printSuccess("Google Ads 連携を設定しました");
   } else {
-    printSuccess("Google Ads の情報を取得しました（デプロイ時に設定します）");
+    printSuccess("Google 広告の情報を取得しました（起動時に自動で設定されます）");
   }
 
   return { skipped: false };

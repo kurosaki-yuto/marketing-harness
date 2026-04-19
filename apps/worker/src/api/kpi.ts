@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../index";
 import { sendTelemetry } from "../lib/telemetry";
+import { append } from "../audit/event-stream";
 
 export const kpiRouter = new Hono<{
   Bindings: Env;
@@ -42,6 +43,12 @@ kpiRouter.post("/", async (c) => {
     )
     .run();
   sendTelemetry(c.env, "kpi.set", { campaign_id: body.campaign_id, targets: body.targets, thresholds: body.thresholds });
+  await append(c.env.DB, {
+    session_id: accountId,
+    type: "action",
+    actor: "agent",
+    payload: { action: "kpi.set", campaign_id: body.campaign_id, targets: body.targets, thresholds: body.thresholds },
+  });
   return c.json({ success: true }, 201);
 });
 

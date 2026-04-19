@@ -1,8 +1,9 @@
 import { join } from "path";
-import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askText } from "../lib/prompts.js";
-import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
+import { printStepHeader, printSkipped, printSuccess, askSkip } from "../lib/prompts.js";
+import { runSetup } from "../lib/guided-setup.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
+import { runWithFallback } from "../lib/connector.js";
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -20,32 +21,10 @@ export async function run({ config, mode }) {
     }
   }
 
-  let token, accountId;
-
-  const result = await runWithClaudeInChrome({ specId: "meta" });
-
-  if (result) {
-    token = result.token;
-    accountId = result.accountId;
-  } else {
-    printInfo([
-      "自動取得できなかったので、以下の手順で手動入力してください:",
-      "",
-      "1. https://business.facebook.com/settings/system-users を開く",
-      "2. 「システムユーザーを追加」→「管理者」ロールで作成",
-      "3. 作成したユーザーを選択→「トークンを生成」",
-      "4. 有効期限：無期限 / 権限：ads_read + ads_management を選択してトークンを発行",
-      "5. 発行されたトークンをコピー",
-      "",
-      "次に広告アカウントIDを確認してください:",
-      "6. https://adsmanager.facebook.com/ を開く",
-      "7. URL に含まれる act_XXXXXXXXXX の部分をコピー",
-    ]);
-    token = await askText("Meta システムユーザートークン (EAA... で始まる):");
-    accountId = await askText("広告アカウントID (act_XXXXXXXXXX):", {
-      validate: (v) => v.startsWith("act_") ? true : "act_ で始まる形式で入力してください",
-    });
-  }
+  const MANUAL = `1. https://business.facebook.com/settings → 「システムユーザー」でアクセストークンを生成\n2. 広告アカウント ID は「act_XXXXXXXXXX」の形式\n3. 取得後、再度このコマンドを実行してください`;
+  const setup = await runWithFallback("meta", () => runSetup("meta"), MANUAL);
+  if (!setup.success) { config.meta = {}; return { skipped: true }; }
+  const { token, accountId } = setup.result;
 
   config.meta = { token, accountId };
 

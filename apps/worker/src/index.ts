@@ -13,6 +13,7 @@ import { socialPostsRouter } from "./api/social/posts";
 import { lineRouter } from "./api/integrations/line";
 import { utageRouter } from "./api/integrations/utage";
 import { googleAdsRouter } from "./api/integrations/google-ads";
+import { adminUsageRouter } from "./api/admin/usage";
 import { authMiddleware } from "./middleware/auth";
 import { licenseMiddleware } from "./middleware/license";
 import { handleCron } from "./crons";
@@ -98,6 +99,7 @@ app.route("/api/social/posts", socialPostsRouter);
 app.route("/api/integrations/line", lineRouter);
 app.route("/api/integrations/utage", utageRouter);
 app.route("/api/integrations/google-ads", googleAdsRouter);
+app.route("/api/admin/usage", adminUsageRouter);
 
 export default {
   fetch: app.fetch,

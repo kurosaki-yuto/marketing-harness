@@ -3,9 +3,10 @@ import { join } from "path";
 import { printStepHeader, printSuccess } from "../lib/prompts.js";
 import { d1Create, d1Execute, deploy, putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
+import { MSG } from "../lib/messages.js";
 
 export async function run({ config }) {
-  printStepHeader(4, "デプロイ", "D1 データベース作成 → スキーマ適用 → シークレット設定 → デプロイ");
+  printStepHeader(4, MSG.DEPLOY_STEP, "広告データの保存場所を作成 → 接続キーを設定 → AI を起動");
 
   const { projectDir } = config;
   const workerDir = join(projectDir, "apps/worker");
@@ -14,27 +15,23 @@ export async function run({ config }) {
     env: config.cloudflareApiToken ? { CLOUDFLARE_API_TOKEN: config.cloudflareApiToken } : {},
   };
 
-  // D1 作成
-  console.log("  D1 データベースを作成中...\n");
+  console.log(`  ${MSG.DEPLOY_DB_CREATE}\n`);
   const dbId = await d1Create("marketing-harness", wranglerOpts);
   if (!dbId) {
-    console.error("  database_id の取得に失敗しました。手動で wrangler.toml に記入してください。");
+    console.error(`  ${MSG.DEPLOY_DB_CREATE_FAIL}`);
   } else {
-    console.log(`  database_id: ${dbId}\n`);
     const tomlPath = join(workerDir, "wrangler.toml");
     const toml = readFileSync(tomlPath, "utf8");
     writeFileSync(tomlPath, toml.replace("YOUR_DATABASE_ID_HERE", dbId));
   }
 
-  // スキーマ適用（cwd が apps/worker なので相対パスは ../../packages/db/schema.sql）
-  console.log("  データベーステーブルを作成中...\n");
+  console.log(`  ${MSG.DEPLOY_SCHEMA}\n`);
   await d1Execute("marketing-harness", "../../packages/db/schema.sql", wranglerOpts);
 
-  // シークレット投入
-  console.log("  シークレットを設定中...\n");
+  console.log(`  ${MSG.DEPLOY_SECRETS}\n`);
   await putSecret("API_KEY", config.apiKey, wranglerOpts);
   await putSecret("LICENSE_KEY", config.licenseKey, wranglerOpts);
-  await putSecret("LICENSE_SERVER_URL", config.licenseServerUrl, wranglerOpts);
+  // LICENSE_SERVER_URL は wrangler.toml の [vars] に定義済みなので putSecret 不要
 
   // 連携 secret（license-server から取得済みの integrations を注入）
   const integ = config.integrations ?? {};
@@ -56,8 +53,7 @@ export async function run({ config }) {
   await putSecret("GOOGLE_ADS_REFRESH_TOKEN", gads.refreshToken, wranglerOpts);
   await putSecret("GOOGLE_ADS_CUSTOMER_ID", gads.customerId, wranglerOpts);
 
-  // デプロイ（確認なし）
-  console.log("\n  デプロイ中...\n");
+  console.log(`\n  ${MSG.DEPLOY_LAUNCHING}\n`);
   const workerUrl = await deploy(workerDir, wranglerOpts);
   console.log("");
 
@@ -68,7 +64,7 @@ export async function run({ config }) {
     `NEXT_PUBLIC_API_KEY=${config.apiKey}`,
   ].join("\n") + "\n");
 
-  printSuccess("デプロイ完了");
+  printSuccess(MSG.DEPLOY_DONE);
   config.workerUrl = workerUrl;
 
   const now = new Date().toISOString();

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../../index";
 import { sendTelemetry } from "../../lib/telemetry";
+import { append } from "../../audit/event-stream";
 
 export const socialPostsRouter = new Hono<{
   Bindings: Env;
@@ -34,10 +35,9 @@ socialPostsRouter.post("/", async (c) => {
   }>();
 
   const id = crypto.randomUUID();
-  const status = body.scheduled_at ? "scheduled" : "draft";
   await c.env.DB.prepare(
     `INSERT INTO social_posts (id, account_id, social_account_id, platform, type, media_url, caption, scheduled_at, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'proposed')`
   )
     .bind(
       id,
@@ -47,36 +47,45 @@ socialPostsRouter.post("/", async (c) => {
       body.type,
       body.media_url,
       body.caption ?? null,
-      body.scheduled_at ?? null,
-      status
+      body.scheduled_at ?? null
     )
     .run();
-  sendTelemetry(c.env, "social.scheduled", { platform: body.platform, type: body.type, scheduled_at: body.scheduled_at });
-  return c.json({ id }, 201);
+  sendTelemetry(c.env, "social.proposed", { platform: body.platform, type: body.type, scheduled_at: body.scheduled_at });
+  await append(c.env.DB, {
+    session_id: accountId,
+    type: "action",
+    actor: "agent",
+    payload: { action: "sns.propose", post_id: id, platform: body.platform, scheduled_at: body.scheduled_at },
+  });
+  return c.json({ id, status: "proposed", note: "承認後に投稿されます" }, 201);
 });
 
-// Phase2 で実際の投稿 API 呼び出しを実装。今は scheduled にセットするだけ
-socialPostsRouter.post("/:id/publish", async (c) => {
+// ユーザーが投稿を承認する（proposed → approved）
+socialPostsRouter.post("/:id/approve", async (c) => {
   const accountId = c.get("accountId");
   const post = await c.env.DB.prepare(
-    "SELECT * FROM social_posts WHERE id = ? AND account_id = ?"
+    "SELECT id, platform, status FROM social_posts WHERE id = ? AND account_id = ?"
   )
     .bind(c.req.param("id"), accountId)
-    .first<{ id: string; platform: string }>();
+    .first<{ id: string; platform: string; status: string }>();
 
   if (!post) return c.json({ error: "Not found" }, 404);
+  if (post.status !== "proposed") return c.json({ error: "承認できる状態ではありません" }, 400);
 
   await c.env.DB.prepare(
-    "UPDATE social_posts SET status = 'scheduled', scheduled_at = datetime('now', '+5 seconds') WHERE id = ? AND account_id = ?"
+    "UPDATE social_posts SET status = 'approved' WHERE id = ? AND account_id = ?"
   )
     .bind(c.req.param("id"), accountId)
     .run();
 
-  return c.json({
-    id: post.id,
-    status: "scheduled",
-    note: "Actual publishing not yet implemented (Phase2). Post queued for processing.",
+  await append(c.env.DB, {
+    session_id: accountId,
+    type: "action",
+    actor: "user",
+    payload: { action: "sns.approve", post_id: post.id, platform: post.platform },
   });
+
+  return c.json({ id: post.id, status: "approved" });
 });
 
 socialPostsRouter.delete("/:id", async (c) => {

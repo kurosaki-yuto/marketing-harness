@@ -1,11 +1,11 @@
 import prompts from "prompts";
+import { MSG } from "./messages.js";
 
 const SERVICES = [
-  { title: "Cloudflare", value: "cloudflare" },
-  { title: "Meta Ads", value: "meta" },
-  { title: "LINE", value: "line" },
-  { title: "UTAGE", value: "utage" },
-  { title: "Google Ads", value: "google-ads" },
+  { title: "Meta 広告（Facebook / Instagram）", value: "meta" },
+  { title: "LINE（朝のレポート通知）", value: "line" },
+  { title: "UTAGE（メルマガ・LP）", value: "utage" },
+  { title: "Google 広告", value: "google-ads" },
   { title: "キャンセル", value: null },
 ];
 
@@ -24,30 +24,38 @@ export function printMenuBanner(cfg) {
   console.log("║  marketing-harness                            ║");
   console.log("║  広告運用 AI エージェント                     ║");
   console.log("╚══════════════════════════════════════════════╝");
-  console.log(`\n  Worker:    ${cfg.workerUrl || "(local)"}`);
-  console.log(`  連携済み:  ${enabled}`);
-  console.log(`  最終起動:  ${lastLaunch}\n`);
+  console.log(`\n  ${MSG.MENU_WORKER}:    ${cfg.workerUrl || "(ローカル)"}`);
+  console.log(`  ${MSG.MENU_INTEGRATIONS}:  ${enabled}`);
+  console.log(`  ${MSG.MENU_LAST_LAUNCH}:  ${lastLaunch}\n`);
+}
+
+export function printAlertBanner(alerts) {
+  if (!alerts || alerts.length === 0) return;
+  console.log("  ⚠  昨日からの変化");
+  for (const a of alerts) console.log(`  ┗ [${a.category}] ${a.text}`);
+  console.log("");
 }
 
 export async function renderMainMenu(cfg, commands) {
-  const commandChoices = commands.map(({ slug, description }) => ({
-    title: `${description}`,
-    value: { type: "slash", slug },
+  const exampleChoices = commands.map(({ slug, description }) => ({
+    title: `  └ ${description}`,
+    value: { type: "hearing", slug, description },
     description: slug,
   }));
 
   const choices = [
-    ...commandChoices,
+    { title: MSG.MENU_CHAT, value: { type: "chat" } },
+    { title: MSG.MENU_SEPARATOR, value: null, disabled: true },
+    ...exampleChoices,
     { title: "──────────────────────", value: null, disabled: true },
-    { title: "AI に相談する（ヒアリングから）", value: { type: "chat" } },
-    { title: "連携を追加・変更する", value: { type: "configure" } },
-    { title: "終了", value: { type: "exit" } },
+    { title: MSG.MENU_CONFIGURE, value: { type: "configure" } },
+    { title: MSG.MENU_EXIT, value: { type: "exit" } },
   ];
 
   const { choice } = await prompts({
     type: "select",
     name: "choice",
-    message: "何をしますか？",
+    message: "どうしますか？",
     choices,
     hint: "矢印キーで選択、Enter で決定",
   });
