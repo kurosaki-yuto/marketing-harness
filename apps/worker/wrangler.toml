@@ -13,4 +13,4 @@ LICENSE_SERVER_URL = "https://marketing-harness-license.gkoinobori0505.workers.d
 # ALERT_WEBHOOK_URL = "https://your-webhook-endpoint.example.com"  # set via wrangler secret put
 
 [triggers]
-crons = ["*/5 * * * *", "0 2 * * *"]
+crons = ["*/5 * * * *", "0 2 * * *", "0 23 * * *"]

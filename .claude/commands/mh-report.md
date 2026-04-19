@@ -1,5 +1,5 @@
 ---
-allowed-tools: mcp__marketing-harness__create_report, mcp__marketing-harness__get_metrics, mcp__marketing-harness__list_knowledge, mcp__marketing-harness__update_knowledge, mcp__marketing-harness__list_companies, mcp__marketing-harness__list_campaigns
+allowed-tools: mcp__marketing-harness__get_report_data, mcp__marketing-harness__save_report, mcp__marketing-harness__get_metrics, mcp__marketing-harness__list_knowledge, mcp__marketing-harness__update_knowledge, mcp__marketing-harness__list_companies, mcp__marketing-harness__list_campaigns
 description: 指定月の月次広告レポートを生成する（エグゼクティブサマリー・KPI 表・改善提案を含む）
 ---
 

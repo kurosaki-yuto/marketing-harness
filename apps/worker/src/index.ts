@@ -23,6 +23,7 @@ export type Env = {
   META_AD_ACCOUNT_ID?: string;
   LINE_CHANNEL_ACCESS_TOKEN?: string;
   LINE_CHANNEL_SECRET?: string;
+  LINE_NOTIFY_USER_ID?: string;
   UTAGE_API_KEY?: string;
   GOOGLE_ADS_DEVELOPER_TOKEN?: string;
   GOOGLE_ADS_CLIENT_ID?: string;

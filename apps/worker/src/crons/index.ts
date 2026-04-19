@@ -1,4 +1,5 @@
 import { syncMetaAds } from "./meta-sync";
+import { sendMorningBrief } from "./morning-brief";
 import type { Env } from "../index";
 
 export async function handleCron(event: ScheduledEvent, env: Env): Promise<void> {
@@ -7,6 +8,11 @@ export async function handleCron(event: ScheduledEvent, env: Env): Promise<void>
   // 日次 Meta Ads 同期（毎日 02:00 UTC）
   if (event.cron === "0 2 * * *") {
     await syncMetaAds(env);
+  }
+
+  // 朝の LINE アラート配信（毎日 23:00 UTC = 日本時間 08:00）
+  if (event.cron === "0 23 * * *") {
+    await sendMorningBrief(env);
   }
 
   // KPI監視（毎5分）
