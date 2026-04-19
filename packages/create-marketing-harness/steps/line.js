@@ -1,12 +1,7 @@
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -49,17 +44,7 @@ export async function run({ config, mode }) {
     channelAccessToken = await askText("チャンネルアクセストークン（長期）:");
     channelSecret = await askText("チャンネルシークレット:");
   } else {
-    const promptText = readFileSync(
-      join(__dirname, "../templates/chrome-prompts/line.md"),
-      "utf8"
-    );
-    const result = await runWithClaudeInChrome({
-      promptText,
-      fields: [
-        { name: "channelAccessToken", label: "チャンネルアクセストークン（長期）" },
-        { name: "channelSecret", label: "チャンネルシークレット" },
-      ],
-    });
+    const result = await runWithClaudeInChrome({ specId: "line" });
     if (!result) {
       printSkipped("line");
       config.line = {};

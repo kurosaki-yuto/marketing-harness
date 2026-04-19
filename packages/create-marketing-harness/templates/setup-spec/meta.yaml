@@ -1,0 +1,14 @@
+id: meta
+label: Meta 広告
+steps:
+  - navigate: https://business.facebook.com/settings/system-users
+  - action: "「システムユーザーを追加」ボタンをクリック。名前を任意で入力し、ロールを「管理者」に設定して作成"
+  - action: "作成したシステムユーザーを選択し「トークンを生成」をクリック"
+  - action: "有効期限を「無期限」に設定し、権限一覧から ads_read と ads_management にチェックを入れてトークンを発行"
+  - extract:
+      field: token
+      label: システムユーザートークン（EAA で始まる長い文字列）
+  - navigate: https://adsmanager.facebook.com/
+  - extract:
+      field: accountId
+      label: 広告アカウントID（URL に含まれる act_XXXXXXXXXX 形式、または右上のアカウント名の下に表示）

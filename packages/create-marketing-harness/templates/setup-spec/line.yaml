@@ -1,0 +1,13 @@
+id: line
+label: LINE Messaging API
+steps:
+  - navigate: https://developers.line.biz/console/
+  - action: "既存のプロバイダーを選択するか、新規作成。その後「チャンネルを作成」→「Messaging API」を選択し必要事項を入力して作成"
+  - action: "作成したチャンネルの「Messaging API 設定」タブを開き、「チャンネルアクセストークン（長期）」の「発行」をクリック"
+  - extract:
+      field: channelAccessToken
+      label: チャンネルアクセストークン（長期）
+  - action: "「基本設定」タブに切り替え"
+  - extract:
+      field: channelSecret
+      label: チャンネルシークレット

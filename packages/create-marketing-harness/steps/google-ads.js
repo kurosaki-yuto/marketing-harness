@@ -1,12 +1,7 @@
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText, askConfirm } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -91,20 +86,7 @@ export async function run({ config, mode }) {
       validate: (v) => /^\d+$/.test(v) ? true : "数字のみで入力してください",
     });
   } else {
-    const promptText = readFileSync(
-      join(__dirname, "../templates/chrome-prompts/google-ads.md"),
-      "utf8"
-    );
-    const result = await runWithClaudeInChrome({
-      promptText,
-      fields: [
-        { name: "developerToken", label: "Developer Token" },
-        { name: "clientId", label: "OAuth2 クライアント ID" },
-        { name: "clientSecret", label: "OAuth2 クライアントシークレット" },
-        { name: "refreshToken", label: "リフレッシュトークン" },
-        { name: "customerId", label: "カスタマー ID（ハイフンなし）" },
-      ],
-    });
+    const result = await runWithClaudeInChrome({ specId: "google-ads" });
     if (!result) {
       printSkipped("google-ads");
       config.googleAds = {};

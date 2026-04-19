@@ -111,8 +111,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           content: { type: "string", description: "内容" },
           category: {
             type: "string",
-            enum: ["improvement", "analysis", "best_practice", "alert_response"],
-            description: "カテゴリ",
+            enum: [
+              "improvement", "analysis", "best_practice", "alert_response",
+              "ad_copy", "ad_creative", "ad_targeting", "ad_budget",
+            ],
+            description: "カテゴリ（improvement/analysis/best_practice/alert_response: 運用知見、ad_copy/ad_creative/ad_targeting/ad_budget: 広告ナレッジ）",
           },
           tags: {
             type: "array",

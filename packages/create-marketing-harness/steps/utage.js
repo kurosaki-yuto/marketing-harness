@@ -1,12 +1,7 @@
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
 import { printStepHeader, printInfo, printSkipped, printSuccess, askSkip, askSelect, askText } from "../lib/prompts.js";
 import { runWithClaudeInChrome } from "../lib/claude-in-chrome.js";
 import { putSecret } from "../lib/wrangler.js";
 import { writeConfig } from "../lib/config-file.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export async function run({ config, mode }) {
   printStepHeader(
@@ -42,14 +37,7 @@ export async function run({ config, mode }) {
     ]);
     apiKey = await askText("UTAGE API キー:");
   } else {
-    const promptText = readFileSync(
-      join(__dirname, "../templates/chrome-prompts/utage.md"),
-      "utf8"
-    );
-    const result = await runWithClaudeInChrome({
-      promptText,
-      fields: [{ name: "apiKey", label: "UTAGE API キー" }],
-    });
+    const result = await runWithClaudeInChrome({ specId: "utage" });
     if (!result) {
       printSkipped("utage");
       config.utage = {};

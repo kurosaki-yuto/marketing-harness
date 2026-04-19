@@ -1,0 +1,8 @@
+id: utage
+label: UTAGE（宴）
+steps:
+  - action: "UTAGE 管理画面（https://utage-system.com）にログインし、左メニューから「設定」→「API 設定」を開く"
+  - action: "API キーが未発行の場合は「発行」ボタンをクリック"
+  - extract:
+      field: apiKey
+      label: UTAGE API キー

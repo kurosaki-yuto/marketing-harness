@@ -1,56 +1,62 @@
 import clipboard from "clipboardy";
 import open from "open";
 import { askConfirm, askText, printInfo } from "./prompts.js";
+import { loadSpec, buildPrompt, extractFieldNames } from "./spec-loader.js";
 
 const CHROME_STORE_URL =
   "https://chromewebstore.google.com/detail/claude/ghkbgpnilfehbibimgapmipdiknkkjif";
 
-async function showInstallGuide() {
+export async function runWithClaudeInChrome({ specId }) {
+  const spec = loadSpec(specId);
+  const promptText = buildPrompt(spec);
+
   printInfo([
-    "Claude in Chrome は Chrome 拡張機能です。",
-    "利用するには以下の準備が必要です:",
+    `Claude in Chrome で「${spec.label}」の認証情報を自動取得します。`,
     "",
-    "1. Claude の有料プランに加入（Pro / Max / Team / Enterprise）",
-    `2. Chrome Web Store からインストール:`,
-    `   ${CHROME_STORE_URL}`,
-    "3. chrome://extensions/ を開き、「Claude」を有効化",
-    "4. Chrome を再起動",
-    "",
-    "準備が完了したら、このステップを再実行してください:",
-    "  npx marketing-harness configure <service>",
+    "事前準備（未完了の場合）:",
+    "  1. Claude Pro / Max / Team / Enterprise プランへの加入",
+    `  2. Chrome 拡張のインストール: ${CHROME_STORE_URL}`,
+    "  3. chrome://extensions/ で「Claude」を有効化",
   ]);
-}
 
-export async function runWithClaudeInChrome({ promptText, fields }) {
-  const isInstalled = await askConfirm(
-    "Claude in Chrome はインストール済みですか？（Claude Pro/Max/Team/Enterprise プラン必須）",
-    false
-  );
+  const isReady = await askConfirm("上記の準備は完了していますか？", false);
 
-  if (!isInstalled) {
-    await showInstallGuide();
+  if (!isReady) {
+    console.log("\n  Chrome Web Store を開きます...");
+    await open(CHROME_STORE_URL).catch(() => {
+      console.log(`  手動で開いてください: ${CHROME_STORE_URL}`);
+    });
+    console.log("  インストール後に以下で再実行できます:");
+    console.log("    npx marketing-harness configure " + specId + "\n");
     return null;
   }
 
-  console.log("\n  次のプロンプトをクリップボードにコピーしてブラウザに貼り付けてください:\n");
-  console.log(`  ---- プロンプト ----`);
-  console.log(promptText.split("\n").map((l) => `  ${l}`).join("\n"));
-  console.log(`  ------------------\n`);
-
   await clipboard.write(promptText);
-  console.log("  クリップボードにコピーしました。ブラウザを開きます...\n");
+  console.log("\n  プロンプトをクリップボードにコピーしました。");
+  console.log("  Claude in Chrome を開いて貼り付け、実行してください...\n");
 
-  const url = "https://claude.ai/new";
+  await open("https://claude.ai/new").catch(() => {
+    console.log("  ブラウザで https://claude.ai/new を開いてください");
+  });
+
+  console.log("  Claude が出力する JSON ブロックをコピーしてここに貼り付けてください:");
+  console.log(`  (例: { "${extractFieldNames(spec)[0]}": "...", ... })\n`);
+
+  const raw = await askText("JSON を貼り付け:");
+
+  let parsed;
   try {
-    await open(url);
+    const jsonStr = raw.trim().replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+    parsed = JSON.parse(jsonStr);
   } catch {
-    console.log(`  ブラウザで次の URL を開いてください: ${url}`);
+    console.log("  JSON のパースに失敗しました。もう一度試してください。");
+    return null;
   }
 
-  const values = {};
-  for (const field of fields) {
-    console.log(`  Claude in Chrome で「${field.label}」を取得したら、ここに貼り付けてください:`);
-    values[field.name] = await askText(field.label);
+  const missing = extractFieldNames(spec).filter((f) => !parsed[f]);
+  if (missing.length > 0) {
+    console.log(`  警告: 取得できなかったフィールドがあります: ${missing.join(", ")}`);
   }
-  return values;
+
+  return parsed;
 }

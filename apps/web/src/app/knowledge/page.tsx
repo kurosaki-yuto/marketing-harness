@@ -26,6 +26,10 @@ const CATEGORIES = [
   { value: "analysis", label: "分析" },
   { value: "best_practice", label: "ベストプラクティス" },
   { value: "alert_response", label: "アラート対応" },
+  { value: "ad_copy", label: "広告コピー" },
+  { value: "ad_creative", label: "クリエイティブ" },
+  { value: "ad_targeting", label: "ターゲティング" },
+  { value: "ad_budget", label: "予算・スケール" },
 ];
 
 export default function KnowledgePage() {

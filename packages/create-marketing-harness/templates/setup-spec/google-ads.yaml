@@ -1,0 +1,26 @@
+id: google-ads
+label: Google Ads
+steps:
+  - navigate: https://ads.google.com/aw/apicenter
+  - extract:
+      field: developerToken
+      label: Developer Token（「APIセンター」ページに表示されている文字列）
+  - navigate: https://console.cloud.google.com/apis/credentials
+  - action: "「認証情報を作成」→「OAuth クライアント ID」をクリック。アプリケーションの種類を「デスクトップ アプリ」に設定して作成"
+  - extract:
+      field: clientId
+      label: OAuth2 クライアント ID（作成後に表示される xxxxx.apps.googleusercontent.com 形式）
+  - extract:
+      field: clientSecret
+      label: OAuth2 クライアントシークレット
+  - navigate: https://developers.google.com/oauthplayground/
+  - action: "右上の歯車アイコンをクリックし「Use your own OAuth credentials」にチェック。クライアント ID とシークレットを入力して閉じる"
+  - action: "左側の API 一覧から「Google Ads API v18」を展開し「https://www.googleapis.com/auth/adwords」を選択。「Authorize APIs」をクリックして Google アカウントで認証"
+  - action: "「Exchange authorization code for tokens」をクリック"
+  - extract:
+      field: refreshToken
+      label: Refresh token（Step 2 に表示される文字列）
+  - navigate: https://ads.google.com/
+  - extract:
+      field: customerId
+      label: カスタマー ID（右上に表示される 123-456-7890 形式の数字をハイフンなしで）
