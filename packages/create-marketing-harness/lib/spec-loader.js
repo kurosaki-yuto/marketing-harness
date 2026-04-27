@@ -183,3 +183,23 @@ export function buildPrompt(spec) {
 export function extractFieldNames(spec) {
   return getExtracts(spec).map((f) => f.field);
 }
+
+export function renderGuidedSteps(spec) {
+  const blocks = [];
+  for (const step of spec.steps ?? []) {
+    if (step.navigate) {
+      blocks.push({ kind: "navigate", url: step.navigate });
+    } else if (step.action) {
+      blocks.push({ kind: "instruction", text: step.action });
+    } else if (step.extract) {
+      blocks.push({
+        kind: "extract",
+        field: step.extract.field,
+        label: step.extract.label,
+        pattern: step.extract.pattern,
+      });
+    }
+    // verify ステップは CLI 誘導では表示しない
+  }
+  return blocks;
+}

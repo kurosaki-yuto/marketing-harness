@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { readConfig, writeConfig } from "./config-file.js";
-import { d1Execute, deploy } from "./wrangler.js";
+import { d1ExecuteQuiet, deploy } from "./wrangler.js";
 import { registerRemoteMcpServer } from "./mcp-settings.js";
 import { LATEST_SCHEMA_VERSION } from "./version.js";
 
@@ -31,19 +31,22 @@ export async function selfUpdate(projectDir) {
         .filter((f) => f.endsWith(".sql"))
         .sort();
 
-      for (const file of files) {
-        const match = file.match(/^0*(\d+)/);
-        if (!match) continue;
-        const migVersion = parseInt(match[1], 10);
-        if (migVersion <= currentVersion) continue;
+      const pending = files.filter((f) => {
+        const m = f.match(/^0*(\d+)/);
+        return m && parseInt(m[1], 10) > currentVersion;
+      });
 
-        // wrangler cwd が workerDir なので ../../packages/db/migrations/ からの相対パス
-        await d1Execute("marketing-harness", `../../packages/db/migrations/${file}`, wranglerOpts);
+      for (let i = 0; i < pending.length; i++) {
+        process.stdout.write(`\r  データを更新しています… (${i + 1}/${pending.length})`);
+        await d1ExecuteQuiet("marketing-harness", `../../packages/db/migrations/${pending[i]}`, wranglerOpts);
       }
+      if (pending.length > 0) process.stdout.write("\n");
     }
 
     // Worker 再デプロイ（新 API ルート・cron を反映）
+    process.stdout.write("  サーバーを更新しています…");
     await deploy(workerDir, wranglerOpts);
+    process.stdout.write("\r  サーバーを更新しました    \n");
 
     // utage 公式 MCP 同期（apiKey がローカル config に保存されている場合のみ）
     const utageApiKey = cfg.utage?.apiKey;

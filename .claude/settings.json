@@ -20,7 +20,18 @@
       "mcp__marketing-harness__check_integration_status",
       "mcp__marketing-harness__connect_social_account",
       "mcp__marketing-harness__list_central_knowledge",
-      "mcp__marketing-harness__fetch_central_knowledge"
+      "mcp__marketing-harness__fetch_central_knowledge",
+      "Bash(marketing-harness configure:*)",
+      "Bash(npx marketing-harness configure:*)",
+      "mcp__utage__*"
     ]
+  },
+  "mcpServers": {
+    "utage": {
+      "url": "https://api.utage-system.com/mcp",
+      "headers": {
+        "Authorization": "Bearer "
+      }
+    }
   }
 }
